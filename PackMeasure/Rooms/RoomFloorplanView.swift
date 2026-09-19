@@ -102,31 +102,46 @@ struct RoomFloorplanView: View {
     @State private var reset = 0
     @State private var zoomRequest = 0
     @State private var labelMode: FloorplanLabelMode = .lengths
+    @State private var showing3D = false
+    @State private var reset3D = 0
+    @State private var zoom3D = 0
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                Picker("Room view", selection: $showing3D) {
+                    Label("2D Plan", systemImage: "square").tag(false)
+                    Label("3D Room", systemImage: "cube").tag(true)
+                }
+                .pickerStyle(.segmented).padding(.horizontal, 20).padding(.top, 12)
                 HStack {
-                    MeasureEyebrow(text: "Plan view")
+                    MeasureEyebrow(text: showing3D ? "Wall outline" : "Plan view")
                     Spacer()
-                    Text("Pinch · Pan · Select").font(.caption).foregroundStyle(.secondary)
+                    Text(showing3D ? "Drag · Rotate · Pinch" : "Pinch · Pan · Select")
+                        .font(.caption).foregroundStyle(.secondary)
                 }.padding(.horizontal, 20).padding(.vertical, 12)
                 Picker("Floorplan labels", selection: $labelMode) {
                     ForEach(FloorplanLabelMode.allCases, id: \.self) { mode in
                         Text(mode.rawValue).tag(mode)
                     }
                 }.pickerStyle(.segmented).padding(.horizontal, 20).padding(.bottom, 12)
-                FloorplanScrollView(walls: room.walls, selected: $selected, reset: reset, zoomRequest: zoomRequest, labelMode: labelMode)
-                    .clipped()
-                    .accessibilityLabel("Interactive scanned floorplan")
+                ZStack {
+                    FloorplanScrollView(walls: room.walls, selected: $selected, reset: reset, zoomRequest: zoomRequest, labelMode: labelMode)
+                        .accessibilityLabel("Interactive scanned floorplan")
+                        .opacity(showing3D ? 0 : 1).allowsHitTesting(!showing3D).accessibilityHidden(showing3D)
+                    RoomWireframeView(walls: room.walls, selected: $selected, reset: reset3D, zoomRequest: zoom3D, labelMode: labelMode)
+                        .opacity(showing3D ? 1 : 0).allowsHitTesting(showing3D).accessibilityHidden(!showing3D)
+                }.clipped()
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
-                        Button("Zoom out", systemImage: "minus.magnifyingglass") { zoomRequest -= 1 }
+                        Button("Zoom out", systemImage: "minus.magnifyingglass") { changeZoom(-1) }
                             .labelStyle(.iconOnly)
-                        Button("Zoom in", systemImage: "plus.magnifyingglass") { zoomRequest += 1 }
+                        Button("Zoom in", systemImage: "plus.magnifyingglass") { changeZoom(1) }
                             .labelStyle(.iconOnly)
                         Spacer()
-                        Button("Fit floorplan") { reset += 1 }
+                        Button(showing3D ? "Fit room" : "Fit floorplan") {
+                            if showing3D { reset3D += 1 } else { reset += 1 }
+                        }
                     }
                     .buttonStyle(.bordered)
                     HStack {
@@ -156,12 +171,27 @@ struct RoomFloorplanView: View {
                             }
                         }
                         Text("\(wall.confidence.capitalized) capture confidence").font(.caption).foregroundStyle(.secondary)
+                    } else if showing3D {
+                        if room.hasRoomExtent {
+                            HStack(alignment: .top, spacing: 12) {
+                                extentMetric("Long span", meters: room.spanLength)
+                                extentMetric("Short span", meters: room.spanWidth)
+                                extentMetric("Max height", meters: room.wallHeight)
+                            }
+                        } else {
+                            Text("Partial scan · \(room.walls.count) wall(s)").font(.subheadline)
+                        }
+                        Text("Tap an edge or label for wall dimensions.").font(.caption).foregroundStyle(.secondary)
                     } else {
                         HStack(spacing: 16) {
                             MeasureMetric(title: "Length", value: "—")
                             MeasureMetric(title: "Height", value: "—")
                         }
                         Text("Select a wall to see its dimensions.").font(.caption).foregroundStyle(.secondary)
+                    }
+                    if showing3D {
+                        Text("Walls aligned at floor level. Heights are captured wall heights; gaps stay open.")
+                            .font(.caption2).foregroundStyle(.secondary)
                     }
                 }
                 .padding(20)
@@ -174,6 +204,22 @@ struct RoomFloorplanView: View {
 
             }
         }
+    }
+
+    private func changeZoom(_ delta: Int) {
+        if showing3D { zoom3D += delta } else { zoomRequest += delta }
+    }
+
+    private func extentMetric(_ title: String, meters: Float) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text(String(format: "%.1f ft", meters * 3.28084))
+                .font(.system(.headline, design: .rounded)).monospacedDigit()
+            Text(String(format: "%.2f m", meters)).font(.caption2).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title), \(MeasuredRoom.dimension(meters))")
     }
 
     private func step(_ delta: Int) {

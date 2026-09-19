@@ -219,9 +219,10 @@ private struct RoomResultView: View {
                             Spacer()
                             Image(systemName: "arrow.right")
                         }.foregroundStyle(MeasureStyle.accent)
-                        Text("Zoom, pan, and select a wall.").font(.caption).foregroundStyle(.secondary)
+                        Text("Explore in 2D or 3D. Select a wall for its length and height.")
+                            .font(.caption).foregroundStyle(.secondary)
                     }.measurePanel()
-                }.buttonStyle(.plain).accessibilityLabel("Explore floorplan, zoom and select walls")
+                }.buttonStyle(.plain).accessibilityLabel("Explore floorplan in 2D or 3D, zoom and select walls")
                 VStack(alignment: .leading, spacing: 18) {
                     MeasureEyebrow(text: room.hasRoomExtent ? "Scanned extent" : "Partial scan")
                     Text(room.coverageMessage).font(.subheadline).foregroundStyle(.secondary)

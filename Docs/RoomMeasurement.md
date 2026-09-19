@@ -97,3 +97,42 @@ Label rectangles use the rendered text size for collision suppression and taps.
 Labels sit clear of their own wall; crowded labels are hidden until zoom creates
 room. Switching label modes preserves the selected wall and viewport. Small
 library previews remain unlabeled. Measurements and saved room files are unchanged.
+
+## 3D wall outline
+
+In **Explore floorplan**, switch between **2D Plan** and **3D Room**. The 3D view
+draws each saved wall's floor edge, top edge, and vertical ends. Drag to rotate
+and tilt, pinch or use the zoom buttons, and choose **Fit room** (or double-tap)
+to restore the initial view. The two views retain their own camera/zoom state;
+wall selection and the **Lengths / Wall IDs** choice carry between them.
+
+Length badges include the wall number and saved length in feet. A vertical **H**
+ruler shows the maximum captured wall height until a wall is selected, then that
+wall's own height. Tap any wall edge, its length badge, or the height badge to
+select it. The inspector shows the selected length and height in meters and feet,
+with capture confidence. The menu and previous/next controls reach crowded or
+hidden wall labels; VoiceOver also provides rotate and fit actions.
+
+With no selected wall, the inspector shows the long span, short span, and maximum
+captured height when the saved scan has an extent. These are the same approximate
+extent values as the result screen, not verified interior clearance or floor area.
+Partial scans keep their missing segments open. Individual heights and concave
+outlines are preserved; the viewer adds no enclosing box, floor, ceiling, or walls.
+
+Saved scans store a 2D footprint and wall heights but no elevation, openings, or
+ceiling geometry. The outline therefore aligns walls at a common floor level.
+This is a dimensional visualization, not a replay of RoomPlan's full model.
+Existing saved scans work without rescanning or changing their storage format.
+
+### September 19 screenshot context and acceptance
+
+- `IMG_5722` through `IMG_5725` show the user's successful walk-in closet scan:
+  four walls, approximately 1.42 × 1.16 m and 2.74 m maximum wall height.
+- `IMG_5721` shows a separate tight closet and RoomPlan's “Move farther away”
+  coaching. It does not depict the successful scan. Tight-space capture remains
+  an independent issue; this viewer does not change RoomPlan capture or coaching.
+- Viewer check: open that saved walk-in closet, switch to 3D, inspect all four
+  walls, rotate/zoom, select a wall, and switch back to 2D. Length, height, wall
+  numbering, and selection must agree. Verify Fit and save/reopen on device.
+- Also inspect an L-shaped room, unequal wall heights, and a partial scan. Gaps
+  must remain visible, and low-confidence walls remain orange (violet if selected).
