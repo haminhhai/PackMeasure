@@ -93,17 +93,9 @@ struct RoomCaptureBridge: UIViewControllerRepresentable {
             publishProgress(room, session: session)
         }
 
-        nonisolated func captureSession(_ session: RoomCaptureSession, didAdd room: CapturedRoom) {
-            publishProgress(room, session: session)
-        }
-
-        nonisolated func captureSession(_ session: RoomCaptureSession, didChange room: CapturedRoom) {
-            publishProgress(room, session: session)
-        }
-
-        nonisolated func captureSession(_ session: RoomCaptureSession, didRemove room: CapturedRoom) {
-            publishProgress(room, session: session)
-        }
+        // Only didUpdate is a complete room snapshot. didAdd/didChange/didRemove
+        // carry deltas (often no walls), so treating them as snapshots clears the
+        // live count and repeatedly resets the unchanged-outline timer.
 
         nonisolated func captureSession(_ session: RoomCaptureSession, didProvide instruction: RoomCaptureSession.Instruction) {
             let next: RoomCoachingInstruction
@@ -165,7 +157,7 @@ struct RoomCaptureBridge: UIViewControllerRepresentable {
                     let walls = Self.measuredWalls(processedResult)
                     let elapsed = self?.startedAt.map { Date.now.timeIntervalSince($0) } ?? 0
                     let wallDetails = processedResult.walls.enumerated().map { index, wall in
-                        "wall=\(index + 1) dimensions_m=\(wall.dimensions)"
+                        "wall=\(index + 1) id=\(wall.identifier) dimensions_m=\(wall.dimensions) start_xz=\(walls[index].start) end_xz=\(walls[index].end) confidence=\(walls[index].confidence)"
                     }.joined(separator: "\n")
                     self?.onDiagnostic("""
                     duration_s=\(Int(elapsed)) detected_walls=\(walls.count) valid_walls=\(walls.filter(\.isValid).count)

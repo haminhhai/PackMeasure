@@ -24,6 +24,7 @@ struct MeasuredRoom: Codable, Identifiable, Sendable {
     let spanWidth: Float
     let wallHeight: Float
     let excludedWallCount: Int?
+    let omittedWallCount: Int? // Walls deliberately left out during review; older saves omit this.
 
     var hasRoomExtent: Bool {
         walls.count >= 3 && (excludedWallCount ?? 0) == 0
@@ -31,7 +32,10 @@ struct MeasuredRoom: Codable, Identifiable, Sendable {
     }
 
     var coverageMessage: String {
-        if hasRoomExtent { return "\(walls.count) walls captured. Check the outline for missing walls." }
+        if hasRoomExtent {
+            let action = (omittedWallCount ?? 0) > 0 ? "kept" : "captured"
+            return "\(walls.count) walls \(action). Check the outline for missing walls."
+        }
         return "Partial scan: \(walls.count) valid wall(s), \(excludedWallCount ?? 0) unusable wall(s). Individual wall dimensions are available; the overall room size is not established."
     }
 
@@ -45,12 +49,14 @@ struct MeasuredRoom: Codable, Identifiable, Sendable {
         }
     }
 
-    init(walls detectedWalls: [Wall], name: String = "Room", date: Date = .now) throws {
+    init(walls detectedWalls: [Wall], name: String = "Room", date: Date = .now,
+         id: UUID = UUID(), previouslyExcludedWallCount: Int = 0, omittedWallCount: Int = 0) throws {
         let walls = detectedWalls.filter(\.isValid)
         guard let reference = walls.max(by: { $0.length < $1.length }) else {
             throw ValidationError.noValidWalls(detected: detectedWalls.count)
         }
-        excludedWallCount = detectedWalls.count - walls.count
+        excludedWallCount = previouslyExcludedWallCount + detectedWalls.count - walls.count
+        self.omittedWallCount = omittedWallCount
         let axis = simd_normalize(reference.end - reference.start)
         let perpendicular = SIMD2<Float>(-axis.y, axis.x)
         // Work relative to one wall to avoid translation-dependent rounding.
@@ -59,7 +65,7 @@ struct MeasuredRoom: Codable, Identifiable, Sendable {
         let y = points.map { simd_dot($0, perpendicular) }
         let a = x.max()! - x.min()!
         let b = y.max()! - y.min()!
-        id = UUID()
+        self.id = id
         self.date = date
         self.name = name
         self.walls = walls
@@ -68,8 +74,24 @@ struct MeasuredRoom: Codable, Identifiable, Sendable {
         wallHeight = walls.map(\.height).max()!
     }
 
+    /// Preserve captured wall identity and dimensions; only recalculate the kept extent.
+    func keepingWalls(_ ids: Set<UUID>) throws -> MeasuredRoom {
+        try MeasuredRoom(walls: walls.filter { ids.contains($0.id) }, name: name, date: date, id: id,
+                         previouslyExcludedWallCount: excludedWallCount ?? 0,
+                         omittedWallCount: (omittedWallCount ?? 0) + walls.filter { !ids.contains($0.id) }.count)
+    }
+
+    var heightReviewMessage: String? {
+        guard let shortest = walls.map(\.height).min(), wallHeight - shortest > 0.2 else { return nil }
+        return "Captured wall heights range from \(Self.dimension(shortest)) to \(Self.dimension(wallHeight)). Check the upper inside corners and exclude outside walls. Wall heights do not verify the ceiling."
+    }
+
     var shareText: String {
         var lines = [name, coverageMessage]
+        if let omittedWallCount, omittedWallCount > 0 {
+            lines.append("\(omittedWallCount) wall(s) left out during review.")
+        }
+        if let heightReviewMessage { lines.append(heightReviewMessage) }
         if hasRoomExtent {
             lines += ["Scanned span: \(Self.dimension(spanLength)) × \(Self.dimension(spanWidth))",
                       "Maximum wall height: \(Self.dimension(wallHeight))",

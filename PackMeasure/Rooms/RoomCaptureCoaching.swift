@@ -8,7 +8,7 @@ enum RoomCaptureGuidance: String, CaseIterable, Sendable {
     var preparation: String {
         switch self {
         case .room: "Move slowly around the room and include every corner."
-        case .tightCloset: "Start at the open doorway with the light on. Aim across the closet at clear wall sections above and below shelves, then cover each corner. Keep the hallway out of view."
+        case .tightCloset: "Start at the open doorway with the light on. Aim across the closet at clear wall sections above and below shelves, then cover each corner. Finish with a slow upward sweep along the inside wall-to-ceiling edges."
         }
     }
 }
@@ -108,12 +108,12 @@ struct RoomCaptureCoaching {
             return ("Bring the far wall into view", "Aim at a visible wall across the closet. Move closer only where there is room, keeping its corners in view.")
         case .moveAwayFromWall:
             return (persistentCloseWarning(at: time) ? "No room to step back?" : "Try the doorway",
-                    "Move to the doorway if you can, and aim across the closet instead of at the nearest shelf. Sweep visible wall sections above and below shelving; keep the hallway out of view.")
+                    "Move to the doorway if you can, and aim across the closet instead of at the nearest shelf. Lower the phone and tilt up toward the inside upper corners. Then sweep visible walls above and below shelving. Exclude outside walls when you review.")
         case .normal, .unknown:
             if outlineUnchanged(at: time) {
                 return ("The outline hasn’t changed recently", "Try a different view of a clear wall or corner. If walls stay hidden, review what was captured and keep the scan partial.")
             }
-            return ("Scan from the doorway", "Aim across the closet and cover each visible corner. Sweep wall sections above and below shelves; the shelf front is not the wall behind it.")
+            return ("Scan from the doorway", "Aim across the closet and cover each visible corner. Sweep above and below shelves, then look up along the inside wall-to-ceiling edges. Lower the phone if you need more distance.")
         }
     }
 

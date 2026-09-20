@@ -106,8 +106,6 @@ private struct RoomScanSheet: View {
     }
     @State private var result: MeasuredRoom?
     @State private var failure: String?
-    @State private var saveFailure: String?
-    @State private var name = "Room"
     let store: RoomScanStore
 
     init(store: RoomScanStore, guidance: RoomCaptureGuidance) {
@@ -119,10 +117,9 @@ private struct RoomScanSheet: View {
         NavigationStack {
             Group {
                 if let result {
-                    VStack(spacing: 0) {
-                        TextField("Room name", text: $name).textFieldStyle(.roundedBorder).padding()
-                        RoomResultView(room: result)
-                    }
+                    RoomScanReviewView(room: result, store: store, diagnostics: diagnosticReport,
+                                       onSaved: { dismiss() }, onScanAgain: retry)
+                        .id(result.id)
                 } else if let failure {
                     VStack {
                         ContentUnavailableView("Room scan needs another try", systemImage: "exclamationmark.triangle", description: Text(failure))
@@ -141,31 +138,12 @@ private struct RoomScanSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
-                ToolbarItem(placement: .bottomBar) {
-                    if result != nil {
-                        HStack {
-                            Button("Scan again", action: retry)
-                            Spacer()
-                            ShareLink("Diagnostics", item: diagnosticReport)
-                        }
-                    }
-                }
                 ToolbarItem(placement: .confirmationAction) {
-                    if var room = result {
-                        Button(room.hasRoomExtent ? "Save" : "Save partial") {
-                            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                            room.name = trimmed.isEmpty ? "Room" : trimmed
-                            do { try store.save(room); dismiss() }
-                            catch { saveFailure = error.localizedDescription }
-                        }
-                    } else if cameraReady && failure == nil {
+                    if result == nil && cameraReady && failure == nil {
                         Button("Finish", action: finish).disabled(finishing)
                     }
                 }
             }
-            .alert("Couldn’t save room", isPresented: Binding(
-                get: { saveFailure != nil }, set: { if !$0 { saveFailure = nil } }
-            )) { Button("OK") { saveFailure = nil } } message: { Text(saveFailure ?? "") }
         }
         .task {
             guard RoomCaptureSession.isSupported else {
@@ -290,7 +268,7 @@ struct RoomCaptureGuidanceCard: View {
     }
 }
 
-private struct RoomResultView: View {
+struct RoomResultView: View {
     let room: MeasuredRoom
     @State private var exploring = false
 
@@ -317,6 +295,14 @@ private struct RoomResultView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     MeasureEyebrow(text: room.hasRoomExtent ? "Scanned extent" : "Partial scan")
                     Text(room.coverageMessage).font(.subheadline).foregroundStyle(.secondary)
+                    if let omitted = room.omittedWallCount, omitted > 0 {
+                        Text("\(omitted) wall(s) left out during review. These measurements use only the walls you kept.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                    if let message = room.heightReviewMessage {
+                        Label(message, systemImage: "arrow.up.left.and.arrow.down.right")
+                            .font(.footnote).foregroundStyle(.orange)
+                    }
                     if room.hasRoomExtent {
                         MeasureMetric(title: "Long span", value: MeasuredRoom.dimension(room.spanLength))
                         Divider()

@@ -182,3 +182,59 @@ Sources checked September 19, 2026:
 - [Apple: lowTexture](https://developer.apple.com/documentation/roomplan/roomcapturesession/instruction/lowtexture)
 - [Apple: RoomCaptureSession.Configuration](https://developer.apple.com/documentation/roomplan/roomcapturesession/configuration)
 - Xcode 27.0 / 27A266a RoomPlan SDK interface, configuration and instruction delegate.
+
+## Wall selection and snapshot coaching (Build 54)
+
+After Finish, choose **Choose walls to save** on the review screen. All captured
+walls start included. Inspect the numbered 2D or 3D outline, then switch **Keep
+Wall N** off for walls outside the closet. Excluded walls remain gray and dashed
+for orientation. The wall list exposes every segment, including short, crowded
+ones, and can locate a wall in the outline. Selection offers Keep all and Clear.
+
+**Preview kept walls** shows the exact subset that will be saved, including its
+recalculated spans and maximum wall height. The preview and saved result renumber
+remaining walls in capture order. Review editing keeps the original wall numbers
+stable until Save. Save writes only the kept walls; Close abandons the new scan.
+No selection disables Save. One or two retained walls save as a partial scan.
+No gap is closed and no missing wall, ceiling or height is inferred.
+
+The name, capture date, room ID, retained wall IDs, lengths, heights and confidence
+are preserved. Optional omitted-wall metadata records intentional exclusions
+separately from unusable scan data. Old saved rooms remain readable. The source
+scan remains intact during editing so any exclusion can be undone before Save.
+
+Mixed heights differing by more than 0.20 m now prompt inspection of the inside
+upper corners and outside-wall selection. This is a review cue, not a ceiling
+detection threshold. Closet guidance explicitly describes a slow upward sweep
+along inside wall-to-ceiling edges and lowering the phone when more distance is
+needed. Apple's native distance coaching remains enabled. The current captured-
+room API provides wall geometry and heights, not a verified ceiling surface.
+
+### September 20 device evidence
+
+The three Build 53 diagnostic files show normally tracked sessions of 50.6, 62.1
+and 40.4 seconds. Two were shared during live capture; their “No RoomPlan result
+received yet” text is not a failure. The completed third scan reports six valid
+walls, with four heights of 2.76 m and two of 3.69 m. No endpoint coordinates were
+recorded in Build 53, so those logs cannot reconstruct the actual footprint or
+identify which numbered wall belongs to the closet. Build 54 final diagnostics
+include wall IDs, footprint endpoints and confidence for future reconstruction.
+
+All three logs repeatedly alternate zero walls with four/five walls at the same
+timestamp. Source review found that didAdd/didChange/didRemove were incorrectly
+forwarded as complete room snapshots. Apple's documented contract reserves the
+complete snapshot for didUpdate; the other callbacks contain only their changes.
+Build 54 uses only didUpdate for live counts, geometry-progress timing and coaching.
+This fixes false progress resets; it does not prove the underlying scan geometry
+or ceiling capture is accurate. Final processed-result conversion is unchanged.
+
+References checked September 20, 2026:
+- [Apple didUpdate: complete snapshot](https://developer.apple.com/documentation/roomplan/roomcapturesessiondelegate/capturesession(_:didupdate:))
+- [Apple didAdd: new surfaces and objects](https://developer.apple.com/documentation/roomplan/roomcapturesessiondelegate/capturesession(_:didadd:))
+- [Apple CapturedRoom geometry](https://developer.apple.com/documentation/roomplan/capturedroom)
+
+Physical check: Finish a closet scan that includes outside walls, deselect those
+walls, inspect Preview kept walls, and save. Reopen it and verify only those walls
+and their unchanged measurements remain. Inspect the inside upper corners on
+repeat capture; compare wall heights with a tape/laser measurement. Share final
+Diagnostics if the ceiling or remaining footprint is still wrong.

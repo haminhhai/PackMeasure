@@ -152,6 +152,19 @@ final class RoomCaptureCoachingTests: XCTestCase {
         XCTAssertTrue(report.contains("instruction_normal_s=50.0"))
     }
 
+    func testRepeatedCompleteSnapshotsDoNotDisguiseAnUnchangedCloset() {
+        var coach = RoomCaptureCoaching()
+        coach.begin(at: 0)
+        let walls = (0..<5).map { wall(shift: Float($0) * 3) }
+        for step in 1...100 {
+            coach.receive(RoomCaptureObservation(walls: walls, tracking: "normal"), at: Double(step) * 0.6)
+        }
+        XCTAssertEqual(coach.validWallCount, 5)
+        XCTAssertTrue(coach.outlineUnchanged(at: 60))
+        XCTAssertTrue(coach.offersReview(at: 60))
+        XCTAssertEqual(coach.diagnosticSummary(at: 60).split(separator: "\n").filter { $0.hasPrefix("t=") }.count, 1)
+    }
+
     func testUnstartedSessionIgnoresEventsAndDoesNotReportSystemUptimeAsScanDuration() {
         var coach = RoomCaptureCoaching()
         coach.receive(.moveAwayFromWall, at: 1000)

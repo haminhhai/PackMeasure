@@ -7,11 +7,13 @@ struct RoomWireframeView: UIViewRepresentable {
     let reset: Int
     let zoomRequest: Int
     let labelMode: FloorplanLabelMode
+    var omittedWallIDs: Set<UUID> = []
 
     func makeUIView(context: Context) -> RoomWireframeDrawing { RoomWireframeDrawing() }
 
     func updateUIView(_ view: RoomWireframeDrawing, context: Context) {
         view.walls = walls
+        view.omittedWallIDs = omittedWallIDs
         view.selected = selected
         view.labelMode = labelMode
         view.onSelect = { selected = $0 }
@@ -27,6 +29,7 @@ struct RoomWireframeView: UIViewRepresentable {
 
 final class RoomWireframeDrawing: UIView {
     var walls: [MeasuredRoom.Wall] = []
+    var omittedWallIDs: Set<UUID> = []
     var selected: Int?
     var labelMode: FloorplanLabelMode = .lengths
     var onSelect: ((Int?) -> Void)?
@@ -125,7 +128,7 @@ final class RoomWireframeDrawing: UIView {
 
     private func heightAnnotation(in geometry: RoomWireframeGeometry) -> HeightAnnotation? {
         // The unselected ruler belongs to an actual tallest wall, not a guessed ceiling.
-        let index = selected ?? walls.indices.filter { walls[$0].isValid }.max { walls[$0].height < walls[$1].height }
+        let index = selected ?? walls.indices.filter { walls[$0].isValid && !omittedWallIDs.contains(walls[$0].id) }.max { walls[$0].height < walls[$1].height }
         guard let index, let face = geometry.faces.first(where: { $0.index == index }) else { return nil }
         let edge = face.corners[0].x > face.corners[1].x ? (0, 3) : (1, 2)
         let x = face.corners[edge.0].x + 16
@@ -150,16 +153,18 @@ final class RoomWireframeDrawing: UIView {
         UIColor.white.withAlphaComponent(0.09).setFill(); dots.fill()
         for face in geometry.faces {
             let color = wallColor(face.index)
+            let omitted = omittedWallIDs.contains(walls[face.index].id)
             let path = UIBezierPath()
             path.move(to: face.corners[0])
             face.corners.dropFirst().forEach { path.addLine(to: $0) }
             path.close()
-            color.withAlphaComponent(face.index == selected ? 0.13 : 0.025).setFill(); path.fill()
+            color.withAlphaComponent(omitted ? 0 : face.index == selected ? 0.13 : 0.025).setFill(); path.fill()
+            if omitted { path.setLineDash([6, 5], count: 2, phase: 0) }
             color.withAlphaComponent(face.index == selected ? 1 : 0.65).setStroke()
             path.lineWidth = face.index == selected ? 3 : 1.5
             path.lineJoinStyle = .round; path.stroke()
             // Strong floor perimeter distinguishes the footprint from the wall tops.
-            line(face.corners[0], face.corners[1], color: color, width: face.index == selected ? 4 : 2.5)
+            line(face.corners[0], face.corners[1], color: color, width: face.index == selected ? 4 : 2.5, dashed: omitted)
         }
         let height = heightAnnotation(in: geometry)
         if let height {
@@ -181,11 +186,12 @@ final class RoomWireframeDrawing: UIView {
     }
 
     private func wallColor(_ index: Int) -> UIColor {
-        index == selected ? UIColor(MeasureStyle.violet) : walls[index].confidence == "low" ? .systemOrange : UIColor(MeasureStyle.accent)
+        omittedWallIDs.contains(walls[index].id) ? (index == selected ? .lightGray : .darkGray) : index == selected ? UIColor(MeasureStyle.violet) : walls[index].confidence == "low" ? .systemOrange : UIColor(MeasureStyle.accent)
     }
 
-    private func line(_ start: CGPoint, _ end: CGPoint, color: UIColor, width: CGFloat) {
+    private func line(_ start: CGPoint, _ end: CGPoint, color: UIColor, width: CGFloat, dashed: Bool = false) {
         let path = UIBezierPath(); path.move(to: start); path.addLine(to: end)
+        if dashed { path.setLineDash([6, 5], count: 2, phase: 0) }
         color.setStroke(); path.lineWidth = width; path.stroke()
     }
 

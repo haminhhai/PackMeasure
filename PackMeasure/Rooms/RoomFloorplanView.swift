@@ -228,12 +228,13 @@ struct RoomFloorplanView: View {
     }
 }
 
-private struct FloorplanScrollView: UIViewRepresentable {
+struct FloorplanScrollView: UIViewRepresentable {
     let walls: [MeasuredRoom.Wall]
     @Binding var selected: Int?
     let reset: Int
     let zoomRequest: Int
     let labelMode: FloorplanLabelMode
+    var omittedWallIDs: Set<UUID> = []
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeUIView(context: Context) -> FloorplanScrollContainer {
@@ -249,6 +250,8 @@ private struct FloorplanScrollView: UIViewRepresentable {
     }
     func updateUIView(_ view: FloorplanScrollContainer, context: Context) {
         context.coordinator.parent = self
+        view.drawing.walls = walls
+        view.drawing.omittedWallIDs = omittedWallIDs
         view.drawing.selected = selected
         view.drawing.labelMode = labelMode
         if view.reset != reset { view.reset = reset; view.fit() }
@@ -296,7 +299,7 @@ private struct FloorplanScrollView: UIViewRepresentable {
     }
 }
 
-private final class FloorplanScrollContainer: UIScrollView {
+final class FloorplanScrollContainer: UIScrollView {
     let plane = UIView()
     let drawing = FloorplanDrawing()
     var reset = 0
@@ -335,8 +338,9 @@ private final class FloorplanScrollContainer: UIScrollView {
     }
 }
 
-private final class FloorplanDrawing: UIView {
+final class FloorplanDrawing: UIView {
     var walls: [MeasuredRoom.Wall] = []
+    var omittedWallIDs: Set<UUID> = []
     var selected: Int?
     var labelMode: FloorplanLabelMode = .lengths
     private let labelFont = UIFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
@@ -370,7 +374,9 @@ private final class FloorplanDrawing: UIView {
         UIColor.white.withAlphaComponent(0.09).setFill(); dots.fill()
         for (index, line) in geometry.segments.enumerated() {
             let path = UIBezierPath(); path.move(to: line.start); path.addLine(to: line.end)
-            let color: UIColor = index == selected ? UIColor(MeasureStyle.violet) : walls[index].confidence == "low" ? .systemOrange : UIColor(MeasureStyle.accent)
+            let omitted = omittedWallIDs.contains(walls[index].id)
+            if omitted { path.setLineDash([6, 5], count: 2, phase: 0) }
+            let color: UIColor = omitted ? (index == selected ? .lightGray : .darkGray) : index == selected ? UIColor(MeasureStyle.violet) : walls[index].confidence == "low" ? .systemOrange : UIColor(MeasureStyle.accent)
             color.setStroke(); path.lineWidth = (index == selected ? 6 : 3)
             path.lineCapStyle = .round; path.stroke()
         }
@@ -382,7 +388,7 @@ private final class FloorplanDrawing: UIView {
             let text = labelMode.text(for: walls[label.index], index: label.index) as NSString
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: labelFont,
-                .foregroundColor: label.index == selected ? UIColor(MeasureStyle.background) : UIColor.white
+                .foregroundColor: label.index == selected ? UIColor(MeasureStyle.background) : omittedWallIDs.contains(walls[label.index].id) ? UIColor.lightGray : UIColor.white
             ]
             let size = text.size(withAttributes: attributes)
             text.draw(at: CGPoint(x: label.rect.midX - size.width / 2, y: label.rect.midY - size.height / 2), withAttributes: attributes)
