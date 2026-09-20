@@ -189,6 +189,10 @@ struct RoomFloorplanView: View {
                         }
                         Text("Select a wall to see its dimensions.").font(.caption).foregroundStyle(.secondary)
                     }
+                    if room.captureSource == .liveSnapshot {
+                        Text("Live outline · unprocessed. Verify wall dimensions.")
+                            .font(.caption2).foregroundStyle(.orange)
+                    }
                     if showing3D {
                         Text("Walls aligned at floor level. Heights are captured wall heights; gaps stay open.")
                             .font(.caption2).foregroundStyle(.secondary)

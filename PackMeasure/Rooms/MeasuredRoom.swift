@@ -2,6 +2,11 @@ import Foundation
 import simd
 
 struct MeasuredRoom: Codable, Identifiable, Sendable {
+    enum CaptureSource: String, Codable, Sendable {
+        case processed
+        case liveSnapshot
+    }
+
     struct Wall: Codable, Identifiable, Sendable {
         let id: UUID
         let start: SIMD2<Float>
@@ -25,6 +30,14 @@ struct MeasuredRoom: Codable, Identifiable, Sendable {
     let wallHeight: Float
     let excludedWallCount: Int?
     let omittedWallCount: Int? // Walls deliberately left out during review; older saves omit this.
+
+    let captureSource: CaptureSource? // Nil for rooms saved before outline recovery.
+
+    var captureSourceMessage: String? {
+        captureSource == .liveSnapshot
+            ? "Live outline · unprocessed. Wall positions and heights may change during processing. Check the outline and verify dimensions."
+            : nil
+    }
 
     var hasRoomExtent: Bool {
         walls.count >= 3 && (excludedWallCount ?? 0) == 0
@@ -50,13 +63,15 @@ struct MeasuredRoom: Codable, Identifiable, Sendable {
     }
 
     init(walls detectedWalls: [Wall], name: String = "Room", date: Date = .now,
-         id: UUID = UUID(), previouslyExcludedWallCount: Int = 0, omittedWallCount: Int = 0) throws {
+         id: UUID = UUID(), previouslyExcludedWallCount: Int = 0, omittedWallCount: Int = 0,
+         captureSource: CaptureSource? = nil) throws {
         let walls = detectedWalls.filter(\.isValid)
         guard let reference = walls.max(by: { $0.length < $1.length }) else {
             throw ValidationError.noValidWalls(detected: detectedWalls.count)
         }
         excludedWallCount = previouslyExcludedWallCount + detectedWalls.count - walls.count
         self.omittedWallCount = omittedWallCount
+        self.captureSource = captureSource
         let axis = simd_normalize(reference.end - reference.start)
         let perpendicular = SIMD2<Float>(-axis.y, axis.x)
         // Work relative to one wall to avoid translation-dependent rounding.
@@ -78,7 +93,8 @@ struct MeasuredRoom: Codable, Identifiable, Sendable {
     func keepingWalls(_ ids: Set<UUID>) throws -> MeasuredRoom {
         try MeasuredRoom(walls: walls.filter { ids.contains($0.id) }, name: name, date: date, id: id,
                          previouslyExcludedWallCount: excludedWallCount ?? 0,
-                         omittedWallCount: (omittedWallCount ?? 0) + walls.filter { !ids.contains($0.id) }.count)
+                         omittedWallCount: (omittedWallCount ?? 0) + walls.filter { !ids.contains($0.id) }.count,
+                         captureSource: captureSource)
     }
 
     var heightReviewMessage: String? {
@@ -88,6 +104,7 @@ struct MeasuredRoom: Codable, Identifiable, Sendable {
 
     var shareText: String {
         var lines = [name, coverageMessage]
+        if let captureSourceMessage { lines.append(captureSourceMessage) }
         if let omittedWallCount, omittedWallCount > 0 {
             lines.append("\(omittedWallCount) wall(s) left out during review.")
         }

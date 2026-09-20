@@ -88,23 +88,25 @@ private struct RoomScanSheet: View {
     @State private var coachingTime = ProcessInfo.processInfo.systemUptime
     @State private var guidance: RoomCaptureGuidance
     @State private var scanID = UUID()
+    @State private var recovery = RoomCaptureRecovery()
     @State private var diagnostics = "No RoomPlan result received yet."
 
     private var diagnosticReport: String {
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
-        return "PackMeasure build \(build) room scan \(scanID)\nguidance=\(guidance.rawValue) live_wall_count=\(coaching.walls.count)\n\(coaching.diagnosticSummary(at: ProcessInfo.processInfo.systemUptime))\n\(diagnostics)\nfailure=\(failure ?? "none")"
+        return "PackMeasure build \(build) room scan \(scanID)\nguidance=\(guidance.rawValue) live_wall_count=\(coaching.walls.count)\n\(coaching.diagnosticSummary(at: ProcessInfo.processInfo.systemUptime))\n\(diagnostics)\n\(recovery.diagnosticSummary)\nfailure=\(failure ?? "none")"
     }
 
     private func retry() {
         scanID = UUID()
         coaching = RoomCaptureCoaching()
+        recovery = RoomCaptureRecovery()
         coachingTime = ProcessInfo.processInfo.systemUptime
         finishing = false
         result = nil
         failure = nil
         diagnostics = "No RoomPlan result received yet."
     }
-    @State private var result: MeasuredRoom?
+    @State private var result: RoomCaptureComparison?
     @State private var failure: String?
     let store: RoomScanStore
 
@@ -117,7 +119,7 @@ private struct RoomScanSheet: View {
         NavigationStack {
             Group {
                 if let result {
-                    RoomScanReviewView(room: result, store: store, diagnostics: diagnosticReport,
+                    RoomCaptureReviewView(comparison: result, store: store, diagnostics: diagnosticReport,
                                        onSaved: { dismiss() }, onScanAgain: retry)
                         .id(result.id)
                 } else if let failure {
@@ -160,7 +162,7 @@ private struct RoomScanSheet: View {
             do { try await Task.sleep(for: .seconds(45)) }
             catch { return }
             if result == nil && failure == nil {
-                failure = "Room processing did not finish. Close this scan and try again."
+                completeProcessing(room: nil, error: "Room processing did not finish within 45 seconds.")
             }
         }
         .task(id: scanID) {
@@ -181,8 +183,22 @@ private struct RoomScanSheet: View {
     }
 
     private func finish() {
+        recovery.freeze()
         coaching.end(at: ProcessInfo.processInfo.systemUptime)
         finishing = true
+    }
+
+    private func completeProcessing(room: MeasuredRoom?, error: String?) {
+        // Only explicit Finish can recover a failed/empty result. Capture errors
+        // and background interruptions must not revive an earlier scan.
+        if room != nil || finishing {
+            recovery.freeze()
+            if let comparison = recovery.comparison(processed: room, failure: error) {
+                result = comparison
+                return
+            }
+        }
+        failure = error ?? "No usable walls were captured. Start a new scan."
     }
 
     private func acceptsEvent(for id: UUID) -> Bool { id == scanID && result == nil && failure == nil }
@@ -197,6 +213,7 @@ private struct RoomScanSheet: View {
                 coaching.begin(at: ProcessInfo.processInfo.systemUptime)
             }, onProgress: { observation in
                 guard acceptsEvent(for: id) else { return }
+                recovery.receive(observation.walls)
                 coaching.receive(observation, at: ProcessInfo.processInfo.systemUptime)
             }, onInstruction: { instruction in
                 guard acceptsEvent(for: id) else { return }
@@ -208,8 +225,8 @@ private struct RoomScanSheet: View {
                 guard acceptsEvent(for: id) else { return }
                 coaching.end(at: ProcessInfo.processInfo.systemUptime)
                 switch outcome {
-                case .success(let room): result = room
-                case .failure(let error): failure = error.localizedDescription
+                case .success(let room): completeProcessing(room: room, error: nil)
+                case .failure(let error): completeProcessing(room: nil, error: error.localizedDescription)
                 }
             }
             .id(id)
@@ -275,6 +292,11 @@ struct RoomResultView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                if let message = room.captureSourceMessage {
+                    Label(message, systemImage: "exclamationmark.triangle")
+                        .font(.footnote).foregroundStyle(.orange).measurePanel()
+                        .accessibilityIdentifier("live-outline-warning")
+                }
                 Button { exploring = true } label: {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {

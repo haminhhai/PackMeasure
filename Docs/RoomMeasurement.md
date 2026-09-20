@@ -238,3 +238,59 @@ walls, inspect Preview kept walls, and save. Reopen it and verify only those wal
 and their unchanged measurements remain. Inspect the inside upper corners on
 repeat capture; compare wall heights with a tape/laser measurement. Share final
 Diagnostics if the ceiling or remaining footprint is still wrong.
+
+## Live outline recovery at Finish (Build 55)
+
+Build 54 scan `2393C11D-6FB1-421C-8AAE-0785B08BB6D5` reported four usable
+live walls but only one native processed wall before review. Its final wall was
+1.0354894 m long and 3.09 m high. The wall selector retained that sole wall; it did
+not cause the count reduction. The log cannot establish why processing changed
+the outline because it did not include live wall geometry.
+
+Build 55 retains the latest complete didUpdate snapshot and freezes it when
+Finish is requested. It never accumulates peak walls or combines snapshots.
+Late updates cannot overwrite the frozen outline, and Scan again resets it.
+The original processed result remains separate.
+
+When processing returns fewer usable walls, reduces total wall length by over
+25% and 0.25 m, or lowers maximum wall height by over 0.30 m, review starts at
+**Compare outlines**. These are review cues, not accuracy thresholds or proof
+of missing geometry: processing may legitimately merge segments. Both candidates
+have separate 2D/3D previews. **Review live outline** explicitly selects the
+unprocessed snapshot; **Review finished outline** selects the processed result.
+Neither is automatically saved. Normal results open finished review directly,
+with **Compare outlines** available when a usable live snapshot exists.
+
+After an explicit Finish, an empty/unusable processed result, processing error,
+or the 45-second timeout can offer the live outline alone. Without a usable
+snapshot the existing failure path remains. Capture errors before Finish and
+background interruptions retain their failure behavior. Scan generations and
+result/failure guards reject old callbacks and late results after recovery.
+
+Choosing an outline starts a fresh wall review. Each candidate keeps its own
+wall IDs and coordinates; no surfaces are stitched or synthesized. The existing
+wall selection, empty-save guard, partial-save behavior and extent recalculation
+apply to the chosen candidate only. A live-source marker survives selection,
+JSON save/reload and text sharing; saved results and floorplans display that the
+outline is unprocessed. Old saved rooms without the optional source field decode.
+
+Diagnostics now include all live wall IDs, endpoints, lengths, heights and
+confidence, frozen state, candidate counts, processing failures and chosen source,
+as well as the existing final processed geometry and selected wall IDs.
+
+Validation includes the four-to-one regression, freeze/late updates, latest vs
+peak and empty snapshots, errors/timeouts, invalid walls, normal refinements,
+large dimension loss, reset, persistence, sharing and old-save decoding. The
+live candidate uses synthetic geometry in automated tests because the supplied
+Build 54 report contains no live endpoints. Device acceptance still requires
+scanning the real closet; neither recovery nor high confidence verifies a ceiling.
+
+Minimal physical check: scan the same tight closet, tap Finish, compare candidates
+if prompted, choose the live outline if it matches the closet, exclude outside
+walls, then Save and reopen. Verify that the chosen walls and dimensions remain.
+Share Diagnostics from final review so both geometries can be compared. Compare
+wall heights against a tape/laser measurement before treating them as accurate.
+
+Apple callback contracts rechecked September 20, 2026:
+- [didUpdate supplies a complete snapshot](https://developer.apple.com/documentation/roomplan/roomcapturesessiondelegate/capturesession(_:didupdate:))
+- [didPresent supplies the processed result](https://developer.apple.com/documentation/roomplan/roomcaptureviewdelegate/captureview(didpresent:error:))

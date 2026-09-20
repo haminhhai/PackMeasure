@@ -164,7 +164,7 @@ struct RoomCaptureBridge: UIViewControllerRepresentable {
                     doors=\(processedResult.doors.count) windows=\(processedResult.windows.count) openings=\(processedResult.openings.count)
                     \(wallDetails)
                     """)
-                    self?.deliver(.success(try MeasuredRoom(walls: walls)))
+                    self?.deliver(.success(try MeasuredRoom(walls: walls, captureSource: .processed)))
                 } catch {
                     self?.deliver(.failure(error))
                 }
