@@ -13,6 +13,7 @@ final class ShelfScanState {
     private var samples: [SIMD3<Float>] = []
     var error: String?
     var ready = false
+    private(set) var needsMatchedViews = false
     var result: ShelfGeometry?
 
     var diagnosticSummary: String {
@@ -38,25 +39,26 @@ final class ShelfScanState {
     func request(at point: SIMD2<Float> = [0.5, 0.5]) {
         guard ready, !isCapturing, result == nil, point.x.isFinite, point.y.isFinite,
               (0...1).contains(point.x), (0...1).contains(point.y) else { return }
-        requestID += 1; target = point; samples = []; isCapturing = true; error = nil
+        requestID += 1; target = point; samples = []; isCapturing = true; error = nil; needsMatchedViews = false
     }
-    func reject(_ message: String, request: Int) {
+    func reject(_ message: String, request: Int, useMatchedViews: Bool = false) {
         guard requestID == request, isCapturing else { return }
         isCapturing = false; samples = []; error = message
+        needsMatchedViews = useMatchedViews && selectedTop == nil
     }
     func receive(_ point: SIMD3<Float>, horizontalSurface: Bool, request: Int) {
         guard requestID == request, isCapturing, result == nil else { return }
         guard [point.x, point.y, point.z].allSatisfy(\.isFinite) else {
-            reject("No usable surface at that point. Try a clearer view.", request: request); return
+            reject("No usable surface at that point. Try a clearer view.", request: request, useMatchedViews: true); return
         }
         if selectedTop == nil && !horizontalSurface {
-            reject("Tap a solid, level patch on top of the shelf. A wire gap or vertical face can’t lock its top surface.", request: request); return
+            reject("Tap a solid, level patch on top of the shelf. A wire gap or vertical face can’t lock its top surface.", request: request, useMatchedViews: true); return
         }
         if selectedTop != nil && (points.isEmpty || points.count == 4) && !horizontalSurface {
             reject(points.isEmpty ? "Aim at a solid, level floor patch, not the wall or stored items." : "Aim at a solid, level underside directly above the front point, or skip clear space measurement.", request: request); return
         }
         if let first = samples.first, simd_distance(first, point) > 0.015 {
-            reject("The selected surface moved in the depth readings. Hold still and try a solid patch.", request: request); return
+            reject("The selected surface moved in the depth readings. Hold still and try a solid patch.", request: request, useMatchedViews: true); return
         }
         samples.append(point)
         guard samples.count >= 5 else { return }
@@ -91,7 +93,7 @@ final class ShelfScanState {
     func invalidate(_ message: String) {
         guard result == nil else { return }
         requestID += 1; isCapturing = false; samples = []; points = []; selectedTop = nil
-        ready = false; error = message
+        ready = false; error = message; needsMatchedViews = false
     }
 }
 
@@ -158,13 +160,13 @@ struct ShelfCamera: UIViewRepresentable {
                 lastRequest = state.requestID; requestStartedAt = frame.timestamp
             }
             if frame.timestamp - requestStartedAt > 2 {
-                state.reject("No stable depth at that point. Change your view or enter the measurement.", request: lastRequest); return
+                state.reject("No stable depth at that point. Change your view or enter the measurement.", request: lastRequest, useMatchedViews: true); return
             }
             guard frame.timestamp - lastSampleTime >= 0.05, CACurrentMediaTime() - frame.timestamp < 0.3,
                   let view, let depth = frame.sceneDepth, let confidence = depth.confidenceMap else { return }
             lastSampleTime = frame.timestamp
             guard let reading = sample(frame: frame, depth: depth.depthMap, confidence: confidence, viewport: view.bounds.size) else {
-                state.reject("No reliable depth at that exact point. Aim at a solid surface 15 cm–3 m away; wire gaps and covered edges may need manual measurement.", request: lastRequest); return
+                state.reject("No reliable depth at that exact point. Aim at a solid surface 15 cm–3 m away; wire gaps and covered edges may need manual measurement.", request: lastRequest, useMatchedViews: true); return
             }
             state.receive(reading.point, horizontalSurface: reading.horizontal, request: lastRequest)
         }
@@ -241,6 +243,8 @@ struct ShelfCamera: UIViewRepresentable {
 
 struct ShelfScannerView: View {
     let onMeasured: (ShelfGeometry, [SIMD3<Float>], SIMD3<Float>) -> Void
+    var onUseMatchedViews: (() -> Void)? = nil
+    var onChooseMethod: (() -> Void)? = nil
     @State var state = ShelfScanState()
     @State private var cameraID = UUID()
     @State private var restartOnForeground = false
@@ -276,6 +280,10 @@ struct ShelfScannerView: View {
                     }.frame(maxHeight: .infinity)
                     ScrollView {
                         VStack(alignment: .leading, spacing: 10) {
+                            if onUseMatchedViews != nil {
+                                Text(state.selectedTop == nil ? "Auto · checking the shelf surface" : "Auto · solid-surface method")
+                                    .font(.caption).foregroundStyle(MeasureStyle.accent)
+                            }
                             if state.selectedTop != nil { Label("Shelf surface locked · move to see each edge", systemImage: "lock.fill").font(.caption).foregroundStyle(MeasureStyle.accent) }
                             Text(state.stepTitle).font(.headline)
                             Text(state.instruction).font(.subheadline)
@@ -297,7 +305,13 @@ struct ShelfScannerView: View {
                 }
             }
             .measureScreen().navigationTitle("Measure shelf").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                if let onChooseMethod { ToolbarItem(placement: .confirmationAction) { Button("Method", action: onChooseMethod) } }
+            }
+            .onChange(of: state.needsMatchedViews, initial: true) { _, needed in
+                if needed { onUseMatchedViews?() }
+            }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .background && state.result == nil {
                     state.invalidate("The app left the foreground. Lock the shelf again.")

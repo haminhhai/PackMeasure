@@ -28,7 +28,7 @@ enum RoomDimensionError: LocalizedError {
 }
 
 struct RoomShelfMeasurement: Codable, Identifiable, Sendable {
-    enum Source: String, Codable, Sendable { case lidar, manual, difference }
+    enum Source: String, Codable, Sendable { case lidar, twoView, manual, difference }
     let id: UUID
     var name: String
     var wallID: UUID?
@@ -39,13 +39,14 @@ struct RoomShelfMeasurement: Codable, Identifiable, Sendable {
     let measuredAt: Date
     let capturedPoints: [SIMD3<Float>]?
     let selectedTop: SIMD3<Float>?
+    let pointMatches: [ShelfPointMatch]?
     let referenceToBack: Float?
     let referenceToFront: Float?
 
     init(id: UUID = UUID(), name: String, wallID: UUID? = nil, depth: Float,
          heightAboveFloor: Float, clearanceAbove: Float?, source: Source,
          measuredAt: Date = .now, capturedPoints: [SIMD3<Float>]? = nil, selectedTop: SIMD3<Float>? = nil,
-         referenceToBack: Float? = nil, referenceToFront: Float? = nil) throws {
+         referenceToBack: Float? = nil, referenceToFront: Float? = nil, pointMatches: [ShelfPointMatch]? = nil) throws {
         guard depth.isFinite, depth > 0, depth <= 10,
               heightAboveFloor.isFinite, (0...20).contains(heightAboveFloor),
               clearanceAbove.map({ $0.isFinite && $0 > 0 && $0 <= 20 }) ?? true else {
@@ -57,10 +58,23 @@ struct RoomShelfMeasurement: Codable, Identifiable, Sendable {
                 throw RoomDimensionError.invalidDifference
             }
         }
+        if source == .twoView {
+            guard let capturedPoints, let pointMatches, let selectedTop,
+                  pointMatches.count == capturedPoints.count, (4...5).contains(pointMatches.count) else { throw RoomDimensionError.invalidShelf }
+            for (point, match) in zip(capturedPoints, pointMatches) {
+                let checked = try ShelfPointMatch(first: match.first, second: match.second)
+                guard simd_distance(point, checked.point) < 0.001 else { throw RoomDimensionError.invalidShelf }
+            }
+            let geometry = try ShelfGeometry(points: capturedPoints, selectedTop: selectedTop)
+            guard abs(depth - geometry.depth) < 0.001, abs(heightAboveFloor - geometry.height) < 0.001,
+                  (clearanceAbove == nil && geometry.clearance == nil)
+                    || (clearanceAbove != nil && geometry.clearance != nil && abs(clearanceAbove! - geometry.clearance!) < 0.001) else { throw RoomDimensionError.invalidShelf }
+        }
         self.id = id; self.name = name; self.wallID = wallID
         self.depth = depth; self.heightAboveFloor = heightAboveFloor; self.clearanceAbove = clearanceAbove
         self.source = source; self.measuredAt = measuredAt; self.capturedPoints = capturedPoints
         self.selectedTop = selectedTop
+        self.pointMatches = pointMatches
         self.referenceToBack = referenceToBack; self.referenceToFront = referenceToFront
     }
 
@@ -72,6 +86,7 @@ struct RoomShelfMeasurement: Codable, Identifiable, Sendable {
     var sourceLabel: String {
         switch source {
         case .lidar: "LiDAR estimate · verify dimensions"
+        case .twoView: "Matched-point estimate · verify dimensions"
         case .manual: "Entered measurements"
         case .difference: "Depth from entered distances · heights entered"
         }

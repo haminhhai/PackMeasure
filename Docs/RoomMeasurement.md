@@ -369,3 +369,82 @@ be captured. Share Shelf diagnostics if the lock or any point fails.
 Apple depth contracts checked September 20, 2026:
 - [ARDepthData](https://developer.apple.com/documentation/arkit/ardepthdata)
 - [Displaying a point cloud using scene depth](https://developer.apple.com/documentation/arkit/displaying-a-point-cloud-using-scene-depth)
+
+## Automatic method choice and bare wire shelves (Build 57)
+
+The supplied Build 56 log (`text-4975-B9ED-CB-0.txt`) records normal readiness but
+no selected top or captured points. The requested location was approximately
+(0.396, 0.699) in the camera viewport and the last error was unreliable exact-point
+depth. The screenshot separately shows the horizontal-patch rejection. Neither
+artifact contains enough raw depth/confidence data to identify the exact cause
+of that sample failure, but both show capture failing before shelf lock.
+
+**Scan selected shelf** now defaults to **Auto**. It first tries the existing
+solid, level LiDAR patch. An unusable initial depth reading, horizontal-patch
+failure, unstable initial samples, or initial depth timeout switches to the
+wire-compatible method. Tracking startup/limitations alone do not switch methods;
+later failed points do not silently discard an existing solid-shelf lock. The
+**Method** menu offers Auto, Solid shelf and Wire shelf. Changing method explicitly
+starts a fresh scan and clears its unfinished points. Auto selects a usable
+measurement method, not a definitive shelf-material classification. Covered
+solid shelves can also need the matched-view method. No target moves to a nearby
+pixel or other object when depth is unavailable.
+
+The wire method requires no board/tray and uses no scene-depth samples. It uses
+two manually matched, visible image points and the camera poses/intrinsics from
+one gravity-aligned AR session. Freeze view 1, pinch/pan to zoom, tap an identifiable
+wire crossing/corner, and confirm. Move sideways about 20–40 cm, freeze view 2,
+and mark the exact same physical point. A thumbnail retains the first selection.
+The original full camera image and its pose are frozen together; zoom/pan affect
+only display, and touches map back to the full portrait image. Portrait selection
+is unrotated once into sensor coordinates before applying intrinsics and pose.
+
+Five point pairs measure: front-edge top (also the lock), floor, left back-edge
+top, right back-edge top, and optional underside directly above the locked front.
+The locked point has a world-space ring/marker as the user moves. The existing
+level-shelf geometry computes perpendicular depth, vertical floor height, and
+clear space. Clear space may be skipped. The front point is not captured twice.
+
+Matched rays require at least 15 cm baseline, a 10–80 degree viewing angle, a
+15 cm–3 m point distance in both views, and no more than 1.5 cm separation at their
+closest approach. Turning in place, parallel/near-parallel rays, disagreement,
+points behind the camera and invalid ranges are rejected. These are consistency
+checks, not certified accuracy tolerances. Selecting different repeated wire
+crossings can still produce a plausible intersection; physical accuracy depends
+on correspondence and tracking and must be checked against a tape. There is no
+automatic wire segmentation, point correspondence or hidden-edge reconstruction.
+
+Result provenance is **Matched-point estimate**, distinct from LiDAR or entered
+measurements. Stored metadata includes both rays, baseline, angle, ray gap and
+result point for each pair. Only values matching that capture can retain this
+source; manually corrected dimensions become entered measurements. Raw photos
+are transient and are not saved with the shelf. Old saved shelves without the
+new optional matching evidence still decode. Diagnostics include stage, selected
+image points, camera movement, failure and captured ray-pair evidence.
+
+Background/interruption, relocalization and explicit restart clear incomplete
+view pairs and shelf points; old snapshot requests cannot advance a new capture.
+Completed reviewed results survive backgrounding. Restart this point preserves
+prior completed points; Undo point removes the preceding point and its evidence.
+A full-screen photo selection cannot accept an implicit center selection.
+
+Validation covers ray reconstruction, world rotation/translation, portrait
+mapping, baseline/parallax/range/disagreement rejection, point sequence and
+height/footprint constraints, skipped clearance, old/new persistence, source
+provenance, explicit photo selection, obsolete snapshot generations, interrupted
+captures and automatic-method guards. UI fixtures check Auto switching and manual
+overrides, original-image coordinates after zoom, and matched-source result
+review. These fixtures do not establish real-device wire accuracy.
+
+Minimal device check: leave Auto selected and tap the bare wire shelf. It should
+switch to the wire-compatible method after an unusable initial patch. Match the
+same visible front wire crossing from two sideways-separated views, then verify
+the marker stays there while moving. Complete the remaining points, compare all
+three values with a tape, and save/reopen. Repeat on an exposed solid shelf: a
+reliable patch should retain the LiDAR method. Share Shelf diagnostics and a
+screenshot if Auto chooses poorly or any point pair cannot be confirmed.
+
+Apple references checked September 20, 2026:
+- [ARDepthData and confidence maps](https://developer.apple.com/documentation/arkit/ardepthdata)
+- [Camera intrinsics](https://developer.apple.com/documentation/arkit/arcamera/intrinsics)
+- [Camera-image display transforms](https://developer.apple.com/documentation/arkit/arframe/displaytransform%28viewrotationangle%3Aviewportsize%3A%29)

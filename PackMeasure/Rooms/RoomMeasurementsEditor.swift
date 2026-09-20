@@ -127,6 +127,8 @@ struct ShelfMeasurementEditor: View {
     @State private var capturedPoints: [SIMD3<Float>]?
     @State private var selectedTop: SIMD3<Float>?
     @State private var unchangedCapture: Bool
+    @State private var capturedSource: RoomShelfMeasurement.Source
+    @State private var pointMatches: [ShelfPointMatch]?
     @State private var error: String?
 
     init(walls: [MeasuredRoom.Wall], shelf: RoomShelfMeasurement? = nil, onSave: @escaping (RoomShelfMeasurement) -> Void) {
@@ -141,7 +143,9 @@ struct ShelfMeasurementEditor: View {
         _front = State(initialValue: RoomLengthEntry(shelf?.referenceToFront))
         _capturedPoints = State(initialValue: shelf?.capturedPoints)
         _selectedTop = State(initialValue: shelf?.selectedTop)
-        _unchangedCapture = State(initialValue: shelf?.source == .lidar)
+        _unchangedCapture = State(initialValue: shelf?.source == .lidar || shelf?.source == .twoView)
+        _capturedSource = State(initialValue: shelf?.source ?? .lidar)
+        _pointMatches = State(initialValue: shelf?.pointMatches)
     }
     private func edited(_ entry: Binding<RoomLengthEntry>) -> Binding<RoomLengthEntry> {
         Binding(get: { entry.wrappedValue }, set: { entry.wrappedValue = $0; unchangedCapture = false })
@@ -158,7 +162,7 @@ struct ShelfMeasurementEditor: View {
                         }
                     }
                     Button("Scan selected shelf", systemImage: "viewfinder") { scanning = true }.accessibilityIdentifier("scan-shelf")
-                    Text("Tap a bare patch to lock the shelf. Move around stored items to capture visible edges; hidden edges require a clearer view or manual measurements.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Auto chooses a solid-surface or wire-compatible method from the initial tap. Use Method in the scanner to override it. Hidden edges still need a clearer view.").font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Measurements") {
                     Picker("Input units", selection: Binding(get: { units }, set: changeUnits)) {
@@ -179,7 +183,7 @@ struct ShelfMeasurementEditor: View {
                     RoomLengthInput(title: "Shelf top above floor", identifier: "shelf-height", entry: edited($floorHeight), units: units)
                     RoomLengthInput(title: "Clear space above (optional)", identifier: "shelf-clearance", entry: edited($clearance), units: units)
                     Text("Clear space is measured from this shelf’s top to the underside of the shelf or lowest obstruction above. Leave blank if not measured.").font(.footnote).foregroundStyle(.secondary)
-                    if unchangedCapture { Text("LiDAR estimate · verify with a tape or laser measure.").font(.footnote).foregroundStyle(.orange) }
+                    if unchangedCapture { Text(capturedSource == .twoView ? "Matched-point estimate · verify with a tape or laser measure." : "LiDAR estimate · verify with a tape or laser measure.").font(.footnote).foregroundStyle(.orange) }
                 }
             }
             .navigationTitle(shelf == nil ? "Add shelf" : "Edit shelf").navigationBarTitleDisplayMode(.inline)
@@ -188,10 +192,10 @@ struct ShelfMeasurementEditor: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Keep shelf") { save() }.accessibilityIdentifier("keep-shelf") }
             }
             .fullScreenCover(isPresented: $scanning) {
-                ShelfScannerView { result, points, selected in
+                ShelfCaptureFlow { result, points, selected, source, matches in
                     depth = RoomLengthEntry(result.depth); floorHeight = RoomLengthEntry(result.height)
                     clearance = RoomLengthEntry(result.clearance); capturedPoints = points; selectedTop = selected
-                    subtractDistances = false; unchangedCapture = true
+                    subtractDistances = false; unchangedCapture = true; capturedSource = source; pointMatches = matches
                 }
             }
             .alert("Check shelf measurements", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
@@ -224,8 +228,8 @@ struct ShelfMeasurementEditor: View {
             let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
             let record = try RoomShelfMeasurement(id: shelf?.id ?? UUID(), name: trimmed.isEmpty ? "Shelf" : trimmed,
                 wallID: wallID, depth: shelfDepth, heightAboveFloor: height, clearanceAbove: clearance.value(in: units),
-                source: subtractDistances ? .difference : unchangedCapture ? .lidar : .manual,
-                capturedPoints: capturedPoints, selectedTop: selectedTop, referenceToBack: b, referenceToFront: f)
+                source: subtractDistances ? .difference : unchangedCapture ? capturedSource : .manual,
+                capturedPoints: capturedPoints, selectedTop: selectedTop, referenceToBack: b, referenceToFront: f, pointMatches: pointMatches)
             onSave(record); dismiss()
         } catch { self.error = error.localizedDescription }
     }
