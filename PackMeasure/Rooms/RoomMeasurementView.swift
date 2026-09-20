@@ -41,7 +41,7 @@ struct RoomMeasurementView: View {
                     }.measurePanel()
                 }
                 ForEach(rooms) { room in
-                    NavigationLink { RoomResultView(room: room) } label: {
+                    NavigationLink { RoomSavedDetailView(room: room, store: store) } label: {
                         VStack(alignment: .leading, spacing: 12) {
                             RoomFloorplanPreview(walls: room.walls).frame(height: 150)
                                 .background(MeasureStyle.background, in: RoundedRectangle(cornerRadius: 16))
@@ -62,7 +62,7 @@ struct RoomMeasurementView: View {
         }
         .measureScreen()
         .navigationTitle("Rooms")
-        .task { reload() }
+        .onAppear { reload() }
         .fullScreenCover(isPresented: $scanning, onDismiss: reload) {
             RoomScanSheet(store: store, guidance: guidance)
         }
@@ -287,6 +287,7 @@ struct RoomCaptureGuidanceCard: View {
 
 struct RoomResultView: View {
     let room: MeasuredRoom
+    var onEditMeasurements: (() -> Void)? = nil
     @State private var exploring = false
 
     var body: some View {
@@ -296,6 +297,28 @@ struct RoomResultView: View {
                     Label(message, systemImage: "exclamationmark.triangle")
                         .font(.footnote).foregroundStyle(.orange).measurePanel()
                         .accessibilityIdentifier("live-outline-warning")
+                }
+                if onEditMeasurements != nil || room.ceilingHeight != nil || !(room.shelves ?? []).isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        MeasureEyebrow(text: "Ceiling & shelves")
+                        if let height = room.ceilingHeight {
+                            LabeledContent("Entered ceiling height", value: MeasuredRoom.dimension(height.meters))
+                            Text("Used for the 3D outline. Captured wall heights stay unchanged.").font(.caption).foregroundStyle(.secondary)
+                        }
+                        ForEach(room.shelves ?? []) { shelf in
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(shelf.name).font(.headline)
+                                LabeledContent("Depth", value: RoomShelfMeasurement.dimension(shelf.depth))
+                                LabeledContent("Top above floor", value: RoomShelfMeasurement.dimension(shelf.heightAboveFloor))
+                                LabeledContent("Clear space above", value: shelf.clearanceAbove.map(RoomShelfMeasurement.dimension) ?? "Not measured")
+                                Text(shelf.sourceLabel).font(.caption).foregroundStyle(.secondary)
+                            }.font(.subheadline)
+                        }
+                        if let onEditMeasurements {
+                            Button("Edit ceiling & shelves", systemImage: "ruler", action: onEditMeasurements)
+                                .buttonStyle(.bordered).accessibilityIdentifier("edit-room-measurements")
+                        }
+                    }.measurePanel()
                 }
                 Button { exploring = true } label: {
                     VStack(alignment: .leading, spacing: 12) {
@@ -340,7 +363,7 @@ struct RoomResultView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Wall \(index + 1)").font(.headline)
                             LabeledContent("Length", value: MeasuredRoom.dimension(wall.length))
-                            LabeledContent("Height", value: MeasuredRoom.dimension(wall.height))
+                            LabeledContent("Captured height", value: MeasuredRoom.dimension(wall.height))
                             Text("\(wall.confidence.capitalized) capture confidence").font(.caption).foregroundStyle(.secondary)
                         }.font(.subheadline).padding(.vertical, 12)
                         if index < room.walls.count - 1 { Divider() }

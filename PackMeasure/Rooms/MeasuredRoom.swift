@@ -39,6 +39,17 @@ struct MeasuredRoom: Codable, Identifiable, Sendable {
             : nil
     }
 
+    var ceilingHeight: RoomCeilingHeight?
+    var shelves: [RoomShelfMeasurement]? // Optional for old saved-room compatibility.
+
+    var renderedWalls: [Wall] {
+        guard let ceilingHeight else { return walls }
+        return walls.map { Wall(id: $0.id, start: $0.start, end: $0.end,
+                                height: ceilingHeight.meters, confidence: $0.confidence) }
+    }
+
+    var displayedHeight: Float { ceilingHeight?.meters ?? wallHeight }
+
     var hasRoomExtent: Bool {
         walls.count >= 3 && (excludedWallCount ?? 0) == 0
             && spanLength.isFinite && spanWidth.isFinite && min(spanLength, spanWidth) > 0.1
@@ -64,7 +75,8 @@ struct MeasuredRoom: Codable, Identifiable, Sendable {
 
     init(walls detectedWalls: [Wall], name: String = "Room", date: Date = .now,
          id: UUID = UUID(), previouslyExcludedWallCount: Int = 0, omittedWallCount: Int = 0,
-         captureSource: CaptureSource? = nil) throws {
+         captureSource: CaptureSource? = nil, ceilingHeight: RoomCeilingHeight? = nil,
+         shelves: [RoomShelfMeasurement]? = nil) throws {
         let walls = detectedWalls.filter(\.isValid)
         guard let reference = walls.max(by: { $0.length < $1.length }) else {
             throw ValidationError.noValidWalls(detected: detectedWalls.count)
@@ -72,6 +84,8 @@ struct MeasuredRoom: Codable, Identifiable, Sendable {
         excludedWallCount = previouslyExcludedWallCount + detectedWalls.count - walls.count
         self.omittedWallCount = omittedWallCount
         self.captureSource = captureSource
+        self.ceilingHeight = ceilingHeight
+        self.shelves = shelves
         let axis = simd_normalize(reference.end - reference.start)
         let perpendicular = SIMD2<Float>(-axis.y, axis.x)
         // Work relative to one wall to avoid translation-dependent rounding.
@@ -94,7 +108,8 @@ struct MeasuredRoom: Codable, Identifiable, Sendable {
         try MeasuredRoom(walls: walls.filter { ids.contains($0.id) }, name: name, date: date, id: id,
                          previouslyExcludedWallCount: excludedWallCount ?? 0,
                          omittedWallCount: (omittedWallCount ?? 0) + walls.filter { !ids.contains($0.id) }.count,
-                         captureSource: captureSource)
+                         captureSource: captureSource, ceilingHeight: ceilingHeight,
+                         shelves: shelves?.filter { $0.wallID.map(ids.contains) ?? true })
     }
 
     var heightReviewMessage: String? {
@@ -105,6 +120,9 @@ struct MeasuredRoom: Codable, Identifiable, Sendable {
     var shareText: String {
         var lines = [name, coverageMessage]
         if let captureSourceMessage { lines.append(captureSourceMessage) }
+        if let ceilingHeight {
+            lines.append("Ceiling height: \(Self.dimension(ceilingHeight.meters)) (entered manually; used for 3D outline). Captured wall heights below are unchanged.")
+        }
         if let omittedWallCount, omittedWallCount > 0 {
             lines.append("\(omittedWallCount) wall(s) left out during review.")
         }
@@ -116,6 +134,10 @@ struct MeasuredRoom: Codable, Identifiable, Sendable {
         }
         lines += walls.enumerated().map { index, wall in
             "Wall \(index + 1): \(Self.dimension(wall.length)) long × \(Self.dimension(wall.height)) high (\(wall.confidence) confidence)"
+        }
+        if let shelves, !shelves.isEmpty {
+            lines.append("Shelves")
+            lines += shelves.map(\.shareText)
         }
         return lines.joined(separator: "\n")
     }

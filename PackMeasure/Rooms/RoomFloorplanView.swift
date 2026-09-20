@@ -129,7 +129,7 @@ struct RoomFloorplanView: View {
                     FloorplanScrollView(walls: room.walls, selected: $selected, reset: reset, zoomRequest: zoomRequest, labelMode: labelMode)
                         .accessibilityLabel("Interactive scanned floorplan")
                         .opacity(showing3D ? 0 : 1).allowsHitTesting(!showing3D).accessibilityHidden(showing3D)
-                    RoomWireframeView(walls: room.walls, selected: $selected, reset: reset3D, zoomRequest: zoom3D, labelMode: labelMode)
+                    RoomWireframeView(walls: room.renderedWalls, selected: $selected, reset: reset3D, zoomRequest: zoom3D, labelMode: labelMode)
                         .opacity(showing3D ? 1 : 0).allowsHitTesting(showing3D).accessibilityHidden(!showing3D)
                 }.clipped()
                 VStack(alignment: .leading, spacing: 10) {
@@ -163,11 +163,11 @@ struct RoomFloorplanView: View {
                         ViewThatFits(in: .horizontal) {
                             HStack(spacing: 16) {
                                 MeasureMetric(title: "Length", value: MeasuredRoom.dimension(wall.length))
-                                MeasureMetric(title: "Height", value: MeasuredRoom.dimension(wall.height))
+                                MeasureMetric(title: room.ceilingHeight == nil ? "Captured height" : "Entered height", value: MeasuredRoom.dimension(room.ceilingHeight?.meters ?? wall.height))
                             }
                             VStack(alignment: .leading, spacing: 12) {
                                 MeasureMetric(title: "Length", value: MeasuredRoom.dimension(wall.length))
-                                MeasureMetric(title: "Height", value: MeasuredRoom.dimension(wall.height))
+                                MeasureMetric(title: room.ceilingHeight == nil ? "Captured height" : "Entered height", value: MeasuredRoom.dimension(room.ceilingHeight?.meters ?? wall.height))
                             }
                         }
                         Text("\(wall.confidence.capitalized) capture confidence").font(.caption).foregroundStyle(.secondary)
@@ -176,7 +176,7 @@ struct RoomFloorplanView: View {
                             HStack(alignment: .top, spacing: 12) {
                                 extentMetric("Long span", meters: room.spanLength)
                                 extentMetric("Short span", meters: room.spanWidth)
-                                extentMetric("Max height", meters: room.wallHeight)
+                                extentMetric(room.ceilingHeight == nil ? "Max height" : "Entered height", meters: room.displayedHeight)
                             }
                         } else {
                             Text("Partial scan · \(room.walls.count) wall(s)").font(.subheadline)
@@ -189,12 +189,16 @@ struct RoomFloorplanView: View {
                         }
                         Text("Select a wall to see its dimensions.").font(.caption).foregroundStyle(.secondary)
                     }
+                    if room.ceilingHeight != nil {
+                        Text("Ceiling height entered manually. Original captured wall heights are unchanged.")
+                            .font(.caption2).foregroundStyle(.orange)
+                    }
                     if room.captureSource == .liveSnapshot {
                         Text("Live outline · unprocessed. Verify wall dimensions.")
                             .font(.caption2).foregroundStyle(.orange)
                     }
                     if showing3D {
-                        Text("Walls aligned at floor level. Heights are captured wall heights; gaps stay open.")
+                        Text(room.ceilingHeight == nil ? "Walls aligned at floor level. Heights are captured wall heights; gaps stay open." : "Walls use the entered flat ceiling height; gaps stay open.")
                             .font(.caption2).foregroundStyle(.secondary)
                     }
                 }

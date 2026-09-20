@@ -294,3 +294,78 @@ wall heights against a tape/laser measurement before treating them as accurate.
 Apple callback contracts rechecked September 20, 2026:
 - [didUpdate supplies a complete snapshot](https://developer.apple.com/documentation/roomplan/roomcapturesessiondelegate/capturesession(_:didupdate:))
 - [didPresent supplies the processed result](https://developer.apple.com/documentation/roomplan/roomcaptureviewdelegate/captureview(didpresent:error:))
+
+## Entered ceiling heights and selected shelves (Build 56)
+
+**Edit ceiling & shelves** is available during room review and after saving.
+A measured floor-to-ceiling value sets a flat height for the 3D wall outline.
+The app labels it as entered and retains every original captured wall height.
+It never assumes a 9 ft ceiling or treats RoomPlan confidence as ceiling proof.
+Cancel discards editor changes; Apply updates the draft or saves an existing room.
+
+Each shelf stores depth, top height above the floor, and optional clear space to
+an underside or lowest obstruction above. Dimensions display in inches and cm.
+Input supports feet/inches or meters. Users can enter depth directly or subtract
+two distances measured from the same reference in the same direction: reference
+to back edge minus reference to front edge. A sideways wall length or two ranges
+from different phone positions cannot be used in that subtraction. The back wall
+is a valid reference only when the shelf touches it.
+
+**Scan selected shelf** starts a separate gravity-aligned AR session. Tap a solid,
+visible patch on the level shelf top to place a persistent ring and seed marker.
+Move the phone to see around stored items, then use the center reticle and Capture
+to record the floor, left and right back-edge top points, front-edge top point,
+and underside directly above the front point. The last step may be skipped;
+the app then says clear space was not measured. Review and accept the result
+before keeping the shelf in the room editor.
+
+The lock is a world-space selected surface reference, not semantic segmentation
+of shelf contents. It does not automatically find edges or recover hidden ones.
+Points on another height are rejected, and the back/front points must enclose
+the locked patch. Boxes with nearly flush tops and tracking drift still require
+careful point placement and physical verification. A straight, level shelf is
+required; irregular or sloped shelving needs manual measurements.
+
+Capture uses the requested depth pixel with no center/nearby fallback, high depth
+confidence, a 0.15–3 m configured range, five samples agreeing within 1.5 cm, and
+normal tracking. Lock, floor and underside steps require an observed horizontal
+patch. Shelf edge heights must agree with the lock within 3 cm; back references
+must be at least 20 cm apart. Depth is perpendicular horizontal distance from
+the observed back-edge line to the front point. Height and clear space use
+vertical differences within this same session. Saved RoomPlan coordinates are
+never combined with the new shelf session. Interruptions/background reset any
+unfinished capture, and obsolete sampling requests cannot advance the sequence.
+These thresholds are rejection checks, not certified accuracy tolerances.
+
+Wire shelves can expose the wall through gaps or lack a usable solid patch.
+The app fails that capture instead of moving the selection to another surface;
+manual measurements and the aligned-distance calculator remain available.
+**Shelf diagnostics** exports selected and captured points, step and current
+error for investigating physical capture problems.
+
+Ceiling and shelf metadata are optional for old-save compatibility. Raw points,
+selected surface and measurement source are retained for LiDAR captures; manually
+edited values are marked entered. Shelves can be assigned to a wall. Excluding
+that wall removes its shelf annotations from the saved subset, with exclusions
+reversible until Save. Unassigned shelves stay with the room. Shared text includes
+measurements, provenance, unmeasured clearances and subtraction inputs.
+
+Tests cover perpendicular geometry under translation/rotation, back-edge order,
+incorrect height/footprint, invalid floor/upper points, missing clearance, unit
+parsing and conversion, legacy decoding, save/reload, wall filtering, explicit
+selection, unstable readings, vertical-face rejection and stale callbacks.
+Simulator UI checks cover entry, calculation, invalid subtraction, cancellation,
+3D entered-height display, save/edit/relaunch, and synthetic capture review.
+Simulator fixtures do not exercise real LiDAR or prove shelf-lock accuracy.
+
+Physical acceptance: enter a measured 9 ft ceiling, save and reopen, then verify
+3D height is 9 ft while original wall heights remain in Wall measurements. On a
+solid shelf, tap a bare top patch and move left/right/up/down; check the ring stays
+on that patch. Capture all five points, compare depth/top height/clearance against
+a tape measure, save and reopen. Try a box top at a different height and verify
+it is rejected. Repeat on wire shelving, using manual entry if no solid patch can
+be captured. Share Shelf diagnostics if the lock or any point fails.
+
+Apple depth contracts checked September 20, 2026:
+- [ARDepthData](https://developer.apple.com/documentation/arkit/ardepthdata)
+- [Displaying a point cloud using scene depth](https://developer.apple.com/documentation/arkit/displaying-a-point-cloud-using-scene-depth)
