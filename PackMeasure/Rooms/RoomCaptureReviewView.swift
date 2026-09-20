@@ -64,7 +64,7 @@ struct RoomCaptureReviewView: View {
             HStack {
                 Text(title).font(.headline)
                 Spacer()
-                Text("\(room.walls.count) walls").font(.subheadline)
+                Text("\(room.walls.count) \(room.walls.count == 1 ? "wall" : "walls")").font(.subheadline)
             }
             Text(subtitle).font(.caption).foregroundStyle(.secondary)
             Button { preview = room } label: {

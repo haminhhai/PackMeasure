@@ -61,7 +61,9 @@ struct RoomCaptureComparison: Identifiable {
         guard let processed else {
             return "A usable finished outline wasn’t returned. You can review the unprocessed live outline or scan again."
         }
-        return "Live: \(live?.walls.count ?? 0) walls · Finished: \(processed.walls.count) walls. Processing can merge or remove segments. Choose the outline that matches your room, then select which walls to save."
+        let liveCount = live?.walls.count ?? 0
+        let finalCount = processed.walls.count
+        return "Live: \(liveCount) \(liveCount == 1 ? "wall" : "walls") · Finished: \(finalCount) \(finalCount == 1 ? "wall" : "walls"). Processing can merge or remove segments. Choose the outline that matches your room, then select which walls to save."
     }
 
     var diagnosticSummary: String {
