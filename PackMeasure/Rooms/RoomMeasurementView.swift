@@ -6,6 +6,7 @@ struct RoomMeasurementView: View {
     @State private var rooms: [MeasuredRoom] = []
     @State private var scanning = false
     @State private var errorMessage: String?
+    @State private var guidance: RoomCaptureGuidance = .room
     private let store = RoomScanStore()
 
     var body: some View {
@@ -18,6 +19,10 @@ struct RoomMeasurementView: View {
                          ? "Move through your room to capture its walls and dimensions."
                          : "Room capture needs a supported LiDAR iPhone. Saved floorplans are available below.")
                         .font(.subheadline).foregroundStyle(.secondary)
+                    Picker("Scan guidance", selection: $guidance) {
+                        ForEach(RoomCaptureGuidance.allCases, id: \.self) { mode in Text(mode.rawValue).tag(mode) }
+                    }.pickerStyle(.segmented)
+                    Text(guidance.preparation).font(.footnote).foregroundStyle(.secondary)
                     Button { scanning = true } label: {
                         Label("Scan a room", systemImage: "viewfinder")
                     }.buttonStyle(MeasurePrimaryButton()).disabled(!RoomCaptureSession.isSupported)
@@ -59,7 +64,7 @@ struct RoomMeasurementView: View {
         .navigationTitle("Rooms")
         .task { reload() }
         .fullScreenCover(isPresented: $scanning, onDismiss: reload) {
-            RoomScanSheet(store: store)
+            RoomScanSheet(store: store, guidance: guidance)
         }
         .alert("Couldn’t load room scans", isPresented: Binding(
             get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
@@ -79,18 +84,21 @@ private struct RoomScanSheet: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var cameraReady = false
     @State private var finishing = false
-    @State private var detectedWallCount = 0
+    @State private var coaching = RoomCaptureCoaching()
+    @State private var coachingTime = ProcessInfo.processInfo.systemUptime
+    @State private var guidance: RoomCaptureGuidance
     @State private var scanID = UUID()
     @State private var diagnostics = "No RoomPlan result received yet."
 
     private var diagnosticReport: String {
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
-        return "PackMeasure build \(build) room scan \(scanID)\nlive_wall_count=\(detectedWallCount)\n\(diagnostics)\nfailure=\(failure ?? "none")"
+        return "PackMeasure build \(build) room scan \(scanID)\nguidance=\(guidance.rawValue) live_wall_count=\(coaching.walls.count)\n\(coaching.diagnosticSummary(at: ProcessInfo.processInfo.systemUptime))\n\(diagnostics)\nfailure=\(failure ?? "none")"
     }
 
     private func retry() {
         scanID = UUID()
-        detectedWallCount = 0
+        coaching = RoomCaptureCoaching()
+        coachingTime = ProcessInfo.processInfo.systemUptime
         finishing = false
         result = nil
         failure = nil
@@ -101,6 +109,11 @@ private struct RoomScanSheet: View {
     @State private var saveFailure: String?
     @State private var name = "Room"
     let store: RoomScanStore
+
+    init(store: RoomScanStore, guidance: RoomCaptureGuidance) {
+        self.store = store
+        _guidance = State(initialValue: guidance)
+    }
 
     var body: some View {
         NavigationStack {
@@ -118,26 +131,7 @@ private struct RoomScanSheet: View {
                             .padding(.bottom)
                     }
                 } else if cameraReady {
-                    RoomCaptureBridge(finishing: finishing, onProgress: { detectedWallCount = $0 },
-                                      onDiagnostic: { diagnostics = $0 }) { outcome in
-                        switch outcome {
-                        case .success(let room): result = room
-                        case .failure(let error): failure = error.localizedDescription
-                        }
-                    }
-                    .id(scanID)
-                    .overlay(alignment: .top) {
-                        Text(detectedWallCount == 0
-                             ? "Looking for walls — move slowly and follow the highlights"
-                             : "\(detectedWallCount) wall(s) detected — include every corner")
-                            .font(.subheadline).padding(10).background(.regularMaterial, in: Capsule()).padding()
-                    }
-                    .overlay(alignment: .bottom) {
-                        if finishing {
-                            ProgressView("Processing room…").padding().background(.regularMaterial, in: Capsule())
-                                .padding(.bottom, 32)
-                        }
-                    }
+                    liveCapture
                 } else {
                     ProgressView("Checking camera access…")
                 }
@@ -165,7 +159,7 @@ private struct RoomScanSheet: View {
                             catch { saveFailure = error.localizedDescription }
                         }
                     } else if cameraReady && failure == nil {
-                        Button("Finish") { finishing = true }.disabled(finishing)
+                        Button("Finish", action: finish).disabled(finishing)
                     }
                 }
             }
@@ -191,11 +185,108 @@ private struct RoomScanSheet: View {
                 failure = "Room processing did not finish. Close this scan and try again."
             }
         }
+        .task(id: scanID) {
+            while !Task.isCancelled && result == nil && failure == nil && !finishing {
+                coachingTime = ProcessInfo.processInfo.systemUptime
+                do { try await Task.sleep(for: .seconds(1)) } catch { return }
+            }
+        }
+        .onChange(of: failure) { _, error in
+            if error != nil { coaching.end(at: ProcessInfo.processInfo.systemUptime) }
+        }
+        .onDisappear { coaching.end(at: ProcessInfo.processInfo.systemUptime) }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background && cameraReady && result == nil {
                 failure = "The app left the foreground. Close this scan and start again to keep the room measurements consistent."
             }
         }
+    }
+
+    private func finish() {
+        coaching.end(at: ProcessInfo.processInfo.systemUptime)
+        finishing = true
+    }
+
+    private func acceptsEvent(for id: UUID) -> Bool { id == scanID && result == nil && failure == nil }
+
+    private var liveCapture: some View {
+        // Capture this generation so a queued callback from a retry cannot
+        // update the next scan's coaching, dimensions, or diagnostics.
+        let id = scanID
+        return VStack(spacing: 0) {
+            RoomCaptureBridge(finishing: finishing, onStart: {
+                guard acceptsEvent(for: id), !finishing else { return }
+                coaching.begin(at: ProcessInfo.processInfo.systemUptime)
+            }, onProgress: { observation in
+                guard acceptsEvent(for: id) else { return }
+                coaching.receive(observation, at: ProcessInfo.processInfo.systemUptime)
+            }, onInstruction: { instruction in
+                guard acceptsEvent(for: id) else { return }
+                coaching.receive(instruction, at: ProcessInfo.processInfo.systemUptime)
+            }, onDiagnostic: { report in
+                guard acceptsEvent(for: id) else { return }
+                diagnostics = report
+            }) { outcome in
+                guard acceptsEvent(for: id) else { return }
+                coaching.end(at: ProcessInfo.processInfo.systemUptime)
+                switch outcome {
+                case .success(let room): result = room
+                case .failure(let error): failure = error.localizedDescription
+                }
+            }
+            .id(id)
+            .overlay(alignment: .top) {
+                Text(coaching.walls.isEmpty
+                     ? "Looking for walls — move slowly and follow the highlights"
+                     : "\(coaching.walls.count) wall(s) detected — include every corner")
+                    .font(.subheadline).padding(10).background(.regularMaterial, in: Capsule()).padding()
+                    .allowsHitTesting(false)
+            }
+            .overlay(alignment: .bottom) {
+                if finishing {
+                    ProgressView("Processing room…").padding().background(.regularMaterial, in: Capsule())
+                        .padding(.bottom, 32)
+                }
+            }
+            if !finishing && coaching.showsGuidance(guidance, at: coachingTime) {
+                RoomCaptureGuidanceCard(coaching: coaching, guidance: $guidance, time: coachingTime,
+                                        diagnosticReport: diagnosticReport, onReview: finish)
+            }
+        }
+    }
+}
+
+struct RoomCaptureGuidanceCard: View {
+    let coaching: RoomCaptureCoaching
+    @Binding var guidance: RoomCaptureGuidance
+    let time: TimeInterval
+    let diagnosticReport: String
+    let onReview: () -> Void
+
+    var body: some View {
+        let advice = coaching.advice(at: time)
+        VStack(alignment: .leading, spacing: 10) {
+            Label(advice.title, systemImage: "door.left.hand.open").font(.headline).foregroundStyle(MeasureStyle.accent)
+            Text(advice.message).font(.subheadline)
+            Text("\(coaching.validWallCount) usable wall(s) · \(coaching.lowConfidenceWallCount) low confidence. Hidden walls may remain missing.")
+                .font(.caption).foregroundStyle(.secondary)
+            ViewThatFits(in: .horizontal) {
+                HStack { actions }
+                VStack(alignment: .leading) { actions }
+            }.buttonStyle(.bordered)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MeasureStyle.panel)
+    }
+
+    @ViewBuilder private var actions: some View {
+        if coaching.offersReview(at: time) {
+            Button("Review captured walls", action: onReview)
+        } else if guidance == .room {
+            Button("Use closet guidance") { guidance = .tightCloset }
+        }
+        ShareLink("Diagnostics", item: diagnosticReport)
     }
 }
 

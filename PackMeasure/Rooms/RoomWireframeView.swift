@@ -134,7 +134,7 @@ final class RoomWireframeDrawing: UIView {
         let text = String(format: "H %.1f ft", walls[index].height * 3.28084)
         let size = badgeSize(text)
         let rect = CGRect(x: min(bounds.maxX - size.width - 6, max(6, x + 6)),
-                          y: min(bounds.maxY - size.height - 6, max(6, (top.y + bottom.y - size.height) / 2)),
+                          y: min(bounds.maxY - size.height - 6, max(6, top.y - size.height / 2)),
                           width: size.width, height: size.height)
         return HeightAnnotation(index: index, bottom: bottom, top: top, rect: rect, text: text)
     }

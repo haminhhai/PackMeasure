@@ -76,7 +76,7 @@ struct RoomWireframeGeometry {
         return hypot(p.x - start.x - t * dx, p.y - start.y - t * dy)
     }
 
-    /// Stable-size labels with alternate positions, keeping the selected wall first.
+    /// Stable-size labels anchored to the floor perimeter, keeping the selected wall first.
     func labels(sizes: [CGSize], selected: Int?, viewport: CGRect,
                 avoiding reserved: CGRect? = nil) -> [(index: Int, rect: CGRect, anchor: CGPoint)] {
         let order = faces.sorted {
@@ -86,11 +86,18 @@ struct RoomWireframeGeometry {
         }
         var result: [(index: Int, rect: CGRect, anchor: CGPoint)] = []
         for face in order where sizes.indices.contains(face.index) {
-            let a = face.corners[3], b = face.corners[2]
+            let a = face.corners[0], b = face.corners[1]
             let anchor = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
             let size = sizes[face.index]
-            for offset in [CGFloat(-24), 24, -52, 52] {
-                let rect = CGRect(x: anchor.x - size.width / 2, y: anchor.y + offset - size.height / 2,
+            // Sideways candidates keep narrow, nearly edge-on closets legible
+            // without sending their length badges back to the wall tops.
+            let sideways = size.width / 2 + 12
+            let offsets: [CGPoint] = [CGPoint(x: 0, y: -24), CGPoint(x: 0, y: 24),
+                                      CGPoint(x: -sideways, y: -24), CGPoint(x: sideways, y: -24),
+                                      CGPoint(x: -sideways, y: 24), CGPoint(x: sideways, y: 24),
+                                      CGPoint(x: 0, y: -58), CGPoint(x: 0, y: 58)]
+            for offset in offsets {
+                let rect = CGRect(x: anchor.x + offset.x - size.width / 2, y: anchor.y + offset.y - size.height / 2,
                                   width: size.width, height: size.height)
                 guard viewport.insetBy(dx: 4, dy: 4).contains(rect),
                       reserved.map({ !$0.insetBy(dx: -4, dy: -4).intersects(rect) }) ?? true,

@@ -106,7 +106,9 @@ and tilt, pinch or use the zoom buttons, and choose **Fit room** (or double-tap)
 to restore the initial view. The two views retain their own camera/zoom state;
 wall selection and the **Lengths / Wall IDs** choice carry between them.
 
-Length badges include the wall number and saved length in feet. A vertical **H**
+Length badges include the wall number and saved length in feet. In Build 53 they
+anchor to the floor perimeter, with collision-aware sideways placement for narrow
+closets. The height badge sits at the top of its unchanged vertical ruler. A vertical **H**
 ruler shows the maximum captured wall height until a wall is selected, then that
 wall's own height. Tap any wall edge, its length badge, or the height badge to
 select it. The inspector shows the selected length and height in meters and feet,
@@ -136,3 +138,47 @@ Existing saved scans work without rescanning or changing their storage format.
   numbering, and selection must agree. Verify Fit and save/reopen on device.
 - Also inspect an L-shaped room, unequal wall heights, and a partial scan. Gaps
   must remain visible, and low-confidence walls remain orange (violet if selected).
+
+## Tight-closet guidance (Build 53)
+
+Choose **Tight closet** in Rooms before scanning. Start at the open doorway with
+the light on, aim across the closet, and cover visible wall sections and corners
+above and below shelves. Keep the hallway outside the scan. This is a practical
+positioning strategy to test on device, not a guaranteed recovery of hidden walls.
+
+The live guidance card responds to RoomPlan's lighting, speed, low-texture and
+distance instructions. The native RoomPlan coaching stays enabled. In ordinary
+Room mode, a continuous “move away” instruction lasting eight seconds also shows
+the closet advice. Duplicate instruction callbacks do not reset that timer.
+
+When a close-range warning persists, or an outline has not meaningfully changed
+for 15 seconds after at least 20 seconds of scanning, **Review captured walls**
+is offered if any valid wall exists. It uses the normal Finish processing path.
+It never stops the scan automatically, certifies coverage, or closes missing gaps.
+Geometry progress considers IDs, endpoints, height and confidence, rather than
+wall count alone. Five-centimeter changes are only a coaching refresh threshold,
+not a measurement accuracy tolerance or a RoomPlan setting.
+
+Diagnostics now include time spent under each RoomPlan instruction, usable/low-
+confidence wall counts, tracking state, geometry progress and a bounded event
+history. They are session-local and shared only by the user; no photos or point
+clouds are included. Retry creates a new session and rejects queued old callbacks.
+
+Apple's current public RoomPlan configuration exposes coaching enablement, not a
+minimum wall distance control. Build 53 does not alter that sensor/model limit or
+the saved geometry. Screenshot IMG_5721 alone cannot establish the cause of its
+tight-closet failure. Shelving/occlusion and viewpoint remain hypotheses to test.
+
+Physical check: scan the tight closet once in Tight closet guidance, starting at
+the doorway. If “Move farther away” persists, verify the advice appears and that
+Review captured walls opens the result normally. Check real wall positions and
+lengths against the closet; shelving must not become a substitute wall. Share
+Diagnostics before retrying, then confirm the next scan starts fresh. Compare
+with the successful saved walk-in closet, which should retain its dimensions.
+
+Sources checked September 19, 2026:
+- [Apple: moveAwayFromWall](https://developer.apple.com/documentation/roomplan/roomcapturesession/instruction/moveawayfromwall)
+- [Apple: Create parametric 3D room scans with RoomPlan](https://developer.apple.com/videos/play/wwdc2022/10127/)
+- [Apple: lowTexture](https://developer.apple.com/documentation/roomplan/roomcapturesession/instruction/lowtexture)
+- [Apple: RoomCaptureSession.Configuration](https://developer.apple.com/documentation/roomplan/roomcapturesession/configuration)
+- Xcode 27.0 / 27A266a RoomPlan SDK interface, configuration and instruction delegate.

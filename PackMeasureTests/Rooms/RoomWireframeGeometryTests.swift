@@ -100,6 +100,21 @@ final class RoomWireframeGeometryTests: XCTestCase {
         }
     }
 
+    func testLengthLabelsStayAnchoredToFloorEdgesAfterRotation() throws {
+        for yaw: Float in [-0.1, .pi / 4, .pi / 2] {
+            let geometry = RoomWireframeGeometry(walls: closet, size: size, yaw: yaw)
+            let labels = geometry.labels(sizes: closet.map { _ in CGSize(width: 84, height: 26) }, selected: nil,
+                                         viewport: CGRect(origin: .zero, size: size))
+            XCTAssertEqual(labels.count, 4)
+            for label in labels {
+                let face = try XCTUnwrap(geometry.faces.first { $0.index == label.index })
+                XCTAssertEqual(label.anchor.x, (face.corners[0].x + face.corners[1].x) / 2, accuracy: 0.001)
+                XCTAssertEqual(label.anchor.y, (face.corners[0].y + face.corners[1].y) / 2, accuracy: 0.001)
+                XCTAssertGreaterThan(label.anchor.y, (face.corners[2].y + face.corners[3].y) / 2)
+            }
+        }
+    }
+
     func testEmptyDegenerateAndInvalidWallsAreSafeAndKeepOriginalIndices() {
         XCTAssertTrue(RoomWireframeGeometry(walls: [], size: size).faces.isEmpty)
         XCTAssertTrue(RoomWireframeGeometry(walls: closet, size: .zero).faces.isEmpty)
