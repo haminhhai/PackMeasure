@@ -16,7 +16,9 @@ struct InteriorMeasurement: Identifiable, Codable, Equatable, Sendable {
     var capturedAt = Date()
     /// Millimeters. Outer perimeter first; remaining loops are excluded obstacles.
     var contours: [[InteriorPoint]]
+    enum HeightSource: String, Codable { case lidar, entered }
     var heightMM: Double
+    var heightSource: HeightSource? = nil
     var sideClearanceMM: Double = 2
     var topClearanceMM: Double = 2
 
@@ -60,7 +62,7 @@ enum InteriorGeometryError: Error, LocalizedError {
         case .invalidHeight: "Usable height must be positive and greater than the top clearance."
         case .invalidClearance: "This clearance collapses or crosses part of the outline. Reduce clearance or retrace the narrow section."
         case .nonPlanar: "The perimeter points are not on one level floor. Retake points on the drawer floor, not the rim."
-        case .heightPoint: "Aim directly above point 1, at the lowest usable top edge. Height must be 10–1,000 mm."
+        case .heightPoint: "Choose a top edge above the traced base. Height must be 10–3,000 mm; you can also enter a measured height."
         }
     }
 }
@@ -184,7 +186,7 @@ enum InteriorGeometry {
         guard simd_length(horizontal) >= 0.01 else { throw InteriorGeometryError.invalidOutline }
         let xAxis = simd_normalize(horizontal), yAxis = SIMD2<Float>(-xAxis.y, xAxis.x)
         let height = Double(heightPoint.y - origin.y) * 1000
-        guard (10...1000).contains(height), simd_length(SIMD2<Float>(heightPoint.x - origin.x, heightPoint.z - origin.z)) <= 0.03 else {
+        guard (10...3000).contains(height) else {
             throw InteriorGeometryError.heightPoint
         }
         let contours = worldLoops.map { loop in
@@ -194,7 +196,24 @@ enum InteriorGeometry {
             }
         }
         try validate(contours)
-        return InteriorMeasurement(contours: contours, heightMM: height)
+        let delta = SIMD2<Float>(heightPoint.x - origin.x, heightPoint.z - origin.z)
+        let projected = InteriorPoint(x: Double(simd_dot(delta, xAxis)) * 1000, y: Double(simd_dot(delta, yAxis)) * 1000)
+        let aboveBase = contains(projected, in: contours[0])
+            || edges(contours[0]).contains { distance(projected, $0.0, $0.1) <= 30 }
+        guard aboveBase, !contours.dropFirst().contains(where: { contains(projected, in: $0) }) else {
+            throw InteriorGeometryError.heightPoint
+        }
+        return InteriorMeasurement(contours: contours, heightMM: height, heightSource: .lidar)
+    }
+
+    static func project(_ worldLoops: [[SIMD3<Float>]], enteredHeightMM: Double) throws -> InteriorMeasurement {
+        guard enteredHeightMM.isFinite, (10...3000).contains(enteredHeightMM), let origin = worldLoops.first?.first else {
+            throw InteriorGeometryError.invalidHeight
+        }
+        var record = try project(worldLoops, heightPoint: origin + SIMD3<Float>(0, 0.1, 0))
+        record.heightMM = enteredHeightMM
+        record.heightSource = .entered
+        return record
     }
 }
 

@@ -1,10 +1,19 @@
 import ARKit
 import AVFoundation
+import CoreImage
 import SceneKit
 import SwiftUI
 
 @MainActor @Observable
 final class InteriorScanState {
+    var generation = UUID()
+    var photo: InteriorPhoto?
+    var photoRequested = false
+    var photoCursor: CGPoint?
+    var manualPlacement = false
+    var ready = false
+    var cameraStatus = "Starting camera…"
+    var target = SIMD2<Float>(0.5, 0.5)
     var loops: [[SIMD3<Float>]] = [[]]
     var automatic = false
     var automaticSeed: SIMD3<Float>?
@@ -21,16 +30,53 @@ final class InteriorScanState {
     var result: InteriorMeasurement?
 
     var prompt: String {
-        if automatic { return "Aim at the drawer floor from above. Keep every edge visible. Check the live corners, then pin the outline." }
-        if selectedCorner != nil && !takingHeight { return "Aim the reticle at the corrected floor corner, then tap Move selected corner." }
-        if loops == [[]] && !takingHeight { return "Aim at the drawer floor and tap Find corners for a live outline, or add points manually." }
-        if pinned && !takingHeight { return "Tap a corner to adjust it, or measure height. Check every notch and cutout before continuing." }
-        if takingHeight { return "Aim directly above the orange first point, at the lowest usable top edge. Capture height." }
-        if loops.count == 1 { return "Trace the inside floor perimeter in order. Add points at every corner or bend, including notches. Do not repeat the first point." }
-        return "Trace obstacle \(loops.count - 1) at floor level, in order around its base. Include its widest footprint over the insert height."
+        if takingHeight { return "Choose a visible top edge above the traced base. Use the lowest height your insert must fit under." }
+        if selectedCorner != nil { return photo == nil ? "Aim at the corrected floor corner, or freeze the view to place it precisely." : "Zoom in, then tap the correct location for the selected corner." }
+        if automatic { return "Keep the whole base and its edges in view. Hold steady when the outline appears." }
+        if pinned { return "Check the outline. Choose a corner below to correct it, or add a missed obstacle." }
+        if photo != nil && loops.count > 1 { return "Zoom in and tap around this obstacle’s base in order. Include its widest footprint over the insert height." }
+        if photo != nil { return "Pinch to zoom. Tap each floor corner in order, including every notch. Don’t repeat the first point." }
+        if manualPlacement { return "Freeze a clear view to tap corners, or aim the cross and add them one at a time." }
+        return "Point down at the clear inside base. Keep the drawer or cabinet still."
+    }
+    var hasOutline: Bool { (loops.first?.count ?? 0) >= 3 }
+    var canFinish: Bool { (loops.last?.count ?? 0) >= 3 && !isCapturingPoint && !automatic }
+    func freezeView() {
+        guard ready, !automatic, result == nil, !isCapturingPoint else { return }
+        photoRequested = true; error = nil
+    }
+    func receivePhoto(_ value: InteriorPhoto) {
+        guard photoRequested, value.generation == generation, result == nil else { return }
+        photo = value; photoRequested = false; photoCursor = nil
+    }
+    func resumeCamera() { photo = nil; photoRequested = false; photoCursor = nil }
+    func placePhotoPoint(_ point: CGPoint) {
+        guard let photo, photo.generation == generation, !trackingInterrupted, !isCapturingPoint,
+              result == nil, !automatic else { return }
+        if pinned && !takingHeight && selectedCorner == nil { return }
+        photoCursor = point
+        guard let world = photo.worldPoint(at: point) else {
+            error = "No reliable depth at that exact spot. Resume camera for a clearer angle; your corners stay in place."; return
+        }
+        receive(world)
+    }
+    func selectCorner(loop: Int, point: Int) {
+        guard !automatic, !takingHeight, !isCapturingPoint, loops.indices.contains(loop), loops[loop].indices.contains(point) else { return }
+        selectedCorner = (loop, point); photoCursor = photo?.portraitPoint(loops[loop][point]); error = nil
+    }
+    func editOutline() { guard !isCapturingPoint else { return }; takingHeight = false; error = nil }
+    func enterHeight(_ millimeters: Double) {
+        guard takingHeight, !isCapturingPoint else { return }
+        do { result = try InteriorGeometry.project(loops, enteredHeightMM: millimeters); error = nil }
+        catch { self.error = error.localizedDescription }
+    }
+    func useOutline(now: TimeInterval = CACurrentMediaTime()) {
+        pinOutline(now: now)
+        if pinned { finishLoop(addObstacle: false) }
     }
     func findCorners() {
         guard !isCapturingPoint, result == nil else { return }
+        resumeCamera(); manualPlacement = false
         automatic = true
         automaticSeed = nil
         preview = []
@@ -64,19 +110,22 @@ final class InteriorScanState {
         error = nil
     }
     func useManual() {
-        invalidate("")
-        error = nil
+        guard !isCapturingPoint else { return }
+        automatic = false; automaticSeed = nil; preview = []; stablePreviewFrames = 0
+        manualPlacement = true; error = nil
     }
-    func requestPoint() {
+    func requestPoint(at point: SIMD2<Float> = SIMD2(0.5, 0.5)) {
         guard !isCapturingPoint, result == nil else { return }
+        target = point
         isCapturingPoint = true
         requestID += 1
     }
     func receive(_ point: SIMD3<Float>) {
+        guard result == nil else { return }
         do {
             if takingHeight {
                 result = try InteriorGeometry.project(loops, heightPoint: point)
-            } else if let selectedCorner, pinned {
+            } else if let selectedCorner {
                 guard let origin = loops.first?.first, abs(point.y - origin.y) <= 0.008 else {
                     throw InteriorGeometryError.nonPlanar
                 }
@@ -102,8 +151,10 @@ final class InteriorScanState {
             _ = try InteriorGeometry.project(loops, heightPoint: origin + SIMD3<Float>(0, 0.1, 0))
             if addObstacle {
                 guard loops.count < 20 else { throw InteriorGeometryError.invalidOutline }
-                loops.append([])
-            } else { takingHeight = true }
+                loops.append([]); pinned = false; manualPlacement = true; selectedCorner = nil
+            } else {
+                takingHeight = true; selectedCorner = nil; resumeCamera()
+            }
             error = nil
         } catch { self.error = error.localizedDescription }
     }
@@ -111,13 +162,15 @@ final class InteriorScanState {
         guard !isCapturingPoint else { return }
         error = nil
         if takingHeight { takingHeight = false }
-        else if pinned { useManual() }
+        else if pinned { selectedCorner = nil }
+        else if selectedCorner != nil { selectedCorner = nil }
         else if loops.last!.isEmpty && loops.count > 1 { loops.removeLast() }
         else if !loops.last!.isEmpty { loops[loops.count - 1].removeLast() }
     }
     func invalidate(_ message: String) {
         // A saved review result no longer depends on a live world coordinate system.
         guard result == nil else { return }
+        generation = UUID(); resumeCamera(); ready = false; manualPlacement = false
         requestID += 1
         isCapturingPoint = false
         loops = [[]]
@@ -141,6 +194,7 @@ struct InteriorCamera: UIViewRepresentable {
         view.session.delegate = context.coordinator
         view.session.delegateQueue = .main
         context.coordinator.view = view
+        view.scene.rootNode.addChildNode(context.coordinator.markers)
         view.addGestureRecognizer(UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.selectCorner(_:))))
         context.coordinator.start()
         return view
@@ -165,21 +219,30 @@ struct InteriorCamera: UIViewRepresentable {
     @MainActor final class Coordinator: NSObject, @preconcurrency ARSessionDelegate {
         let state: InteriorScanState
         weak var view: ARSCNView?
+        let markers = SCNNode()
+        let imageContext = CIContext()
         var lastRequest = 0
         var active = true
         var lastPreviewTime: TimeInterval = 0
         @objc func selectCorner(_ gesture: UITapGestureRecognizer) {
-            guard state.pinned, !state.takingHeight, !state.isCapturingPoint, let view else { return }
-            for hit in view.hitTest(gesture.location(in: view), options: nil) {
-                guard let parts = hit.node.name?.split(separator: ":"), parts.count == 2,
-                      let loop = Int(parts[0]), let point = Int(parts[1]) else { continue }
-                state.selectedCorner = (loop, point)
-                return
+            guard !state.automatic, !state.isCapturingPoint, state.photo == nil, let view else { return }
+            if !state.takingHeight {
+                for hit in view.hitTest(gesture.location(in: view), options: nil) {
+                    guard let parts = hit.node.name?.split(separator: ":"), parts.count == 2,
+                          let loop = Int(parts[0]), let point = Int(parts[1]) else { continue }
+                    state.selectCorner(loop: loop, point: point)
+                    return
+                }
             }
+            guard state.ready, state.manualPlacement || state.takingHeight || state.selectedCorner != nil,
+                  !state.pinned || state.takingHeight || state.selectedCorner != nil,
+                  view.bounds.width > 0, view.bounds.height > 0 else { return }
+            let p = gesture.location(in: view)
+            state.requestPoint(at: SIMD2(Float(p.x / view.bounds.width), Float(p.y / view.bounds.height)))
         }
         func render() {
-            guard let view else { return }
-            view.scene.rootNode.childNodes.forEach { $0.removeFromParentNode() }
+            guard view != nil else { return }
+            markers.childNodes.forEach { $0.removeFromParentNode() }
             let loops = state.automatic ? state.preview : state.loops
             for (loopIndex, loop) in loops.enumerated() {
                 for (pointIndex, point) in loop.enumerated() {
@@ -190,7 +253,7 @@ struct InteriorCamera: UIViewRepresentable {
                     let node = SCNNode(geometry: sphere)
                     node.name = "\(loopIndex):\(pointIndex)"
                     node.simdPosition = point
-                    view.scene.rootNode.addChildNode(node)
+                    markers.addChildNode(node)
                     let close = state.automatic || state.pinned || state.takingHeight || loopIndex < loops.count - 1
                     guard pointIndex > 0 || (close && loop.count > 2) else { continue }
                     let previous = loop[(pointIndex + loop.count - 1) % loop.count]
@@ -202,15 +265,54 @@ struct InteriorCamera: UIViewRepresentable {
                     let edge = SCNNode(geometry: cylinder)
                     edge.simdPosition = (point + previous) / 2
                     edge.simdOrientation = simd_quatf(from: SIMD3<Float>(0,1,0), to: (point-previous)/length)
-                    view.scene.rootNode.addChildNode(edge)
+                    markers.addChildNode(edge)
                 }
             }
         }
         func session(_ session: ARSession, didUpdate frame: ARFrame) {
-            guard active, state.automatic, !state.isCapturingPoint,
+            guard active, state.result == nil else { return }
+            guard case .normal = frame.camera.trackingState else {
+                state.ready = false
+                state.cameraStatus = "Move slowly while tracking settles"
+                if case .limited(.relocalizing) = frame.camera.trackingState {
+                    state.invalidate("Tracking restarted. Capture the outline again.")
+                }
+                return
+            }
+            state.ready = true; state.cameraStatus = "Camera ready"
+            if state.photoRequested { freeze(frame) }
+            guard state.automatic, !state.isCapturingPoint,
                   frame.timestamp - lastPreviewTime >= 0.35 else { return }
             lastPreviewTime = frame.timestamp
             capture(requestID: state.requestID, preview: true)
+        }
+        private func freeze(_ frame: ARFrame) {
+            guard CACurrentMediaTime() - frame.timestamp < 0.3,
+                  let depth = frame.sceneDepth, let confidence = depth.confidenceMap else {
+                state.photoRequested = false; state.error = "No depth for this view yet. Keep the base visible and try Freeze & zoom again."; return
+            }
+            let map = depth.depthMap, w = CVPixelBufferGetWidth(map), h = CVPixelBufferGetHeight(map)
+            guard CVPixelBufferGetPixelFormatType(map) == kCVPixelFormatType_DepthFloat32,
+                  CVPixelBufferGetPixelFormatType(confidence) == kCVPixelFormatType_OneComponent8,
+                  CVPixelBufferGetWidth(confidence) == w, CVPixelBufferGetHeight(confidence) == h else { return }
+            CVPixelBufferLockBaseAddress(map, .readOnly); CVPixelBufferLockBaseAddress(confidence, .readOnly)
+            defer { CVPixelBufferUnlockBaseAddress(map, .readOnly); CVPixelBufferUnlockBaseAddress(confidence, .readOnly) }
+            guard let base = CVPixelBufferGetBaseAddress(map), let cbase = CVPixelBufferGetBaseAddress(confidence) else { return }
+            var values = [Float](), confidences = [UInt8]()
+            for y in 0..<h {
+                let row = base.advanced(by: y * CVPixelBufferGetBytesPerRow(map)).assumingMemoryBound(to: Float.self)
+                let c = cbase.advanced(by: y * CVPixelBufferGetBytesPerRow(confidence)).assumingMemoryBound(to: UInt8.self)
+                values.append(contentsOf: UnsafeBufferPointer(start: row, count: w))
+                confidences.append(contentsOf: UnsafeBufferPointer(start: c, count: w))
+            }
+            let oriented = CIImage(cvPixelBuffer: frame.capturedImage).oriented(.right)
+            guard let image = imageContext.createCGImage(oriented, from: oriented.extent) else {
+                state.photoRequested = false; state.error = "Couldn’t freeze this view. Try again."; return
+            }
+            state.receivePhoto(InteriorPhoto(generation: state.generation, image: UIImage(cgImage: image),
+                grid: DepthGrid(width: w, height: h, depths: values, confidences: confidences),
+                imageSize: [Int(frame.camera.imageResolution.width), Int(frame.camera.imageResolution.height)],
+                intrinsics: frame.camera.intrinsics, transform: frame.camera.transform))
         }
         init(state: InteriorScanState) { self.state = state; lastRequest = state.requestID }
         func start() {
@@ -254,7 +356,7 @@ struct InteriorCamera: UIViewRepresentable {
                 state.error = "Wait for stable tracking and fresh LiDAR depth, then try again."
                 return
             }
-            let imagePoint = CGPoint(x: 0.5, y: 0.5).applying(
+            let imagePoint = CGPoint(x: CGFloat(state.target.x), y: CGFloat(state.target.y)).applying(
                 frame.displayTransform(for: .portrait, viewportSize: view.bounds.size).inverted()
             )
             let map = depth.depthMap
@@ -282,18 +384,19 @@ struct InteriorCamera: UIViewRepresentable {
                 confidences.append(contentsOf: UnsafeBufferPointer(start: confidenceRow, count: w))
             }
             let grid = DepthGrid(width: w, height: h, depths: depths, confidences: confidences)
-            guard let sample = ScannerFrameDepthSampler(minimumDepthMeters: 0.15, maximumDepthMeters: 2.5).sample(
+            let sample = ScannerFrameDepthSampler(minimumDepthMeters: 0.15, maximumDepthMeters: 2.5).sample(
                 normalizedImagePoint: SIMD2<Float>(Float(imagePoint.x), Float(imagePoint.y)),
                 grid: grid,
                 cameraImageResolutionPixels: SIMD2<Int>(Int(frame.camera.imageResolution.width), Int(frame.camera.imageResolution.height)),
                 cameraIntrinsics: frame.camera.intrinsics,
                 cameraTransform: frame.camera.transform
-            ), sample.confidence == .high else {
-                state.error = "No high-confidence depth at the reticle. Aim at a solid inner surface, 15 cm–2.5 m away."
-                return
-            }
+            )
+            // Once the floor seed is established, previews follow that world point,
+            // even when the center cross is no longer over the original patch.
             if state.automatic {
-                let origin = state.automaticSeed ?? sample.worldPosition
+                guard let origin = state.automaticSeed ?? (sample?.confidence == .high ? sample?.worldPosition : nil) else {
+                    state.error = "Aim at a clear patch of the base, then try Find outline again."; return
+                }
                 state.automaticSeed = origin
                 let cameraOrigin = SIMD3<Float>(frame.camera.transform.columns.3.x, frame.camera.transform.columns.3.y, frame.camera.transform.columns.3.z)
                 let sx = Float(w) / Float(frame.camera.imageResolution.width)
@@ -333,7 +436,12 @@ struct InteriorCamera: UIViewRepresentable {
                     previewSucceeded = true
                     state.error = nil
                 } catch { state.error = error.localizedDescription }
-            } else { state.receive(sample.worldPosition) }
+            } else {
+                guard let sample, sample.confidence == .high else {
+                    state.error = "No reliable depth at that exact spot. Try a clearer angle or freeze the view to zoom in."; return
+                }
+                state.receive(sample.worldPosition)
+            }
         }
         func sessionWasInterrupted(_ session: ARSession) {
             state.trackingInterrupted = true
@@ -346,76 +454,6 @@ struct InteriorCamera: UIViewRepresentable {
         func session(_ session: ARSession, didFailWithError error: any Error) {
             state.trackingInterrupted = true
             state.invalidate("Camera tracking failed. Close and reopen the interior scanner.")
-        }
-    }
-}
-
-struct InteriorScannerView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var state = InteriorScanState()
-    @State private var cameraID = UUID()
-    var onSave: (InteriorMeasurement) throws -> Void
-    var body: some View {
-        NavigationStack {
-            if let result = state.result {
-                InteriorReviewView(record: result, onSave: { record in
-                    try onSave(record)
-                    dismiss()
-                })
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
-                    ToolbarItem(placement: .primaryAction) {
-                        Button("Retake") { state = InteriorScanState(); cameraID = UUID() }
-                    }
-                }
-            } else {
-                VStack(spacing: 12) {
-                    ZStack {
-                        InteriorCamera(state: state).id(cameraID)
-                        Image(systemName: "plus").font(.largeTitle).foregroundStyle(.white).shadow(radius: 2)
-                    }
-                    .frame(maxHeight: .infinity)
-                    Text(state.prompt).font(.callout).padding(.horizontal)
-                    Text(state.automatic
-                         ? "\(state.preview.first?.count ?? 0) corners · \(max(0, state.preview.count - 1)) cutouts · \(state.stablePreviewFrames >= 3 ? "Ready to pin" : "Finding stable edges")"
-                         : "\(state.loops.last?.count ?? 0) points · \(state.loops.count - 1) obstacle outlines")
-                        .font(.caption).foregroundStyle(.secondary)
-                    if let error = state.error { Text(error).font(.caption).foregroundStyle(.orange).padding(.horizontal) }
-                    if state.automatic {
-                        Button("Pin outline") { state.pinOutline() }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(state.preview.isEmpty || state.stablePreviewFrames < 3 || state.isCapturingPoint)
-                        Button("Use manual points", action: state.useManual)
-                    } else if state.loops == [[]] {
-                        Button("Find corners", action: state.findCorners).buttonStyle(.borderedProminent)
-                    }
-                    HStack {
-                        Button(state.pinned ? "Clear outline" : "Undo", action: state.undo)
-                        Button(state.takingHeight ? "Capture height" : (state.pinned ? "Move selected corner" : "Add point"), action: state.requestPoint)
-                            .disabled(state.pinned && !state.takingHeight && state.selectedCorner == nil)
-                            .buttonStyle(.borderedProminent)
-                    }
-                    .disabled(state.isCapturingPoint || state.automatic)
-                    if !state.takingHeight && !state.automatic {
-                        HStack {
-                            if !state.pinned { Button("Add obstacle") { state.finishLoop(addObstacle: true) } }
-                            Button("Measure height") { state.finishLoop(addObstacle: false) }
-                        }
-                        .disabled(state.isCapturingPoint || (state.loops.last?.count ?? 0) < 3)
-                    }
-                    Text("Empty and secure the drawer. Keep it still. Trace a level floor; use extra points for curves. This captures a flat outline, not tapered walls or overhangs.")
-                        .font(.caption).foregroundStyle(.secondary).padding(.horizontal)
-                }
-                .padding(.bottom)
-                .navigationTitle("Scan interior")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
-            }
-        }
-        .onChange(of: scenePhase) { _, phase in
-            if phase != .active { state.invalidate("The app left the camera. Retrace the interior after returning.") }
-            else if state.result == nil { state.trackingInterrupted = false; cameraID = UUID() }
         }
     }
 }

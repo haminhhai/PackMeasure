@@ -101,11 +101,11 @@ struct InteriorGeometryTests {
         #expect(abs(scan.contours[0][1].x - 400) < 0.01)
         #expect(abs(scan.heightMM - 103) < 0.01)
     }
-    @Test func rejectsUnevenFloorOrHeightOnAnotherWall() {
+    @Test func rejectsUnevenFloorOrHeightOutsideFootprint() {
         var uneven = world
         uneven[0][2].y = 0.02
         #expect(throws: (any Error).self) { try InteriorGeometry.project(uneven, heightPoint: .init(1,0.1,-1)) }
-        #expect(throws: (any Error).self) { try InteriorGeometry.project(world, heightPoint: .init(1.4,0.1,-1)) }
+        #expect(throws: (any Error).self) { try InteriorGeometry.project(world, heightPoint: .init(1.8,0.1,-1)) }
         #expect(throws: (any Error).self) { try InteriorGeometry.project(world, heightPoint: .init(1,-0.1,-1)) }
     }
     @Test func storesContoursObstaclesAndClearanceWithoutTouchingInventory() throws {

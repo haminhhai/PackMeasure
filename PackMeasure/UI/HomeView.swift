@@ -26,7 +26,7 @@ struct HomeView: View {
                         NavigationLink {
                             InteriorLibraryView()
                         } label: {
-                            MeasureActionLabel(title: "Measure a drawer interior", subtitle: "Trace irregular outlines. Design a fitted insert.", symbol: "square.dashed.inset.filled")
+                            MeasureActionLabel(title: "Measure a drawer or cabinet", subtitle: "Capture the inside. Plan an insert.", symbol: "square.dashed.inset.filled")
                         }.buttonStyle(.plain)
                         Button { appModel.showingScanner = true } label: {
                             MeasureActionLabel(title: "Scan an item", subtitle: "Measure boxes, furniture, and more.", symbol: "shippingbox")

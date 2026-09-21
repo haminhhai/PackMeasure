@@ -11,7 +11,7 @@ struct InteriorLibraryView: View {
     var body: some View {
         List {
             Section {
-                Button { showingScanner = true } label: { Label("Scan drawer or interior", systemImage: "viewfinder") }
+                Button { showingScanner = true } label: { Label("Scan drawer or cabinet", systemImage: "viewfinder") }
                     .disabled(!loaded)
                 Text("Capture an irregular floor outline, exclude obstacles, and export a millimeter SVG for CAD. Saved interiors are separate from cargo inventory.")
                     .font(.footnote).foregroundStyle(.secondary)
@@ -100,9 +100,11 @@ struct InteriorReviewView: View {
                 TextField("Interior name", text: $record.name)
                 HStack {
                     Text("Usable height (mm)")
-                    TextField("Height", value: $record.heightMM, format: .number.precision(.fractionLength(1)))
+                    TextField("Height", value: Binding(get: { record.heightMM }, set: { record.heightMM = $0; record.heightSource = .entered }), format: .number.precision(.fractionLength(1)))
                         .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
                 }
+                Text(record.heightSource == .entered ? "Height entered by you" : record.heightSource == .lidar ? "Captured height · verify available space" : "Verify available height")
+                    .font(.caption).foregroundStyle(.secondary)
                 Stepper("Side clearance: \(record.sideClearanceMM.formatted()) mm", value: $record.sideClearanceMM, in: 0...30, step: 0.5)
                 Stepper("Top clearance: \(record.topClearanceMM.formatted()) mm", value: $record.topClearanceMM, in: 0...30, step: 0.5)
                 Text("Side clearance is applied at every wall and around obstacles. A rectangular insert loses twice this amount per horizontal dimension. Top clearance is subtracted once from usable height.")
@@ -153,8 +155,15 @@ struct InteriorReviewView: View {
                 if let message { Text(message).font(.footnote) }
             }
         }
-        .navigationTitle("Interior draft")
+        .navigationTitle("Review interior")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") {
+                    do { try onSave(record); message = "Interior saved." } catch { message = error.localizedDescription }
+                }.disabled((try? output.get()) == nil).accessibilityIdentifier("save-interior-review")
+            }
+        }
         .fileExporter(isPresented: $exporting, document: document, contentType: .svg, defaultFilename: "interior-insert") { result in
             switch result {
             case .success: message = "SVG exported. Verify its scale in CAD."

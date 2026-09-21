@@ -2,9 +2,15 @@ import SwiftUI
 
 /// A full, uncropped portrait camera image. Pan/zoom only changes its display;
 /// selection always maps back to normalized coordinates in the original image.
+struct PhotoOutline {
+    var points: [CGPoint?]
+    var closed: Bool
+}
+
 struct ShelfPhotoPointPicker: UIViewRepresentable {
     let image: UIImage
     @Binding var point: CGPoint?
+    var outlines: [PhotoOutline] = []
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeUIView(context: Context) -> Canvas {
         let view = Canvas()
@@ -16,6 +22,7 @@ struct ShelfPhotoPointPicker: UIViewRepresentable {
     }
     func updateUIView(_ view: Canvas, context: Context) {
         context.coordinator.parent = self
+        view.setOutlines(outlines)
         view.setPoint(point)
     }
     @MainActor final class Coordinator: NSObject, UIScrollViewDelegate {
@@ -33,11 +40,15 @@ struct ShelfPhotoPointPicker: UIViewRepresentable {
     @MainActor final class Canvas: UIScrollView {
         let photoView = UIImageView()
         private let cross = CAShapeLayer()
+        private let outlineLayer = CAShapeLayer()
+        private var outlines: [PhotoOutline] = []
         private var fittedSize: CGSize = .zero
         private var selected: CGPoint?
         override init(frame: CGRect) {
             super.init(frame: frame)
-            addSubview(photoView); photoView.layer.addSublayer(cross)
+            photoView.clipsToBounds = true
+            addSubview(photoView); photoView.layer.addSublayer(outlineLayer); photoView.layer.addSublayer(cross)
+            outlineLayer.strokeColor = UIColor.systemTeal.cgColor; outlineLayer.fillColor = nil
             cross.strokeColor = UIColor.systemYellow.cgColor; cross.fillColor = nil
             showsHorizontalScrollIndicator = false; showsVerticalScrollIndicator = false
             bouncesZoom = true
@@ -59,13 +70,43 @@ struct ShelfPhotoPointPicker: UIViewRepresentable {
             }
             centerImage()
         }
+        func setOutlines(_ outlines: [PhotoOutline]) { self.outlines = outlines; drawOutlines() }
+        private func drawOutlines() {
+            let path = UIBezierPath()
+            func pixel(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x * photoView.bounds.width, y: p.y * photoView.bounds.height) }
+            let radius = 4 / max(zoomScale, 0.001)
+            outlineLayer.sublayers?.forEach { $0.removeFromSuperlayer() }
+            for (loopIndex, outline) in outlines.enumerated() {
+                var previous: CGPoint?
+                for (pointIndex, value) in outline.points.enumerated() {
+                    guard let value else { previous = nil; continue }
+                    let p = pixel(value)
+                    if let previous { path.move(to: previous); path.addLine(to: p) }
+                    previous = p
+                    let label = CATextLayer()
+                    label.string = loopIndex == 0 ? "\(pointIndex + 1)" : "O\(loopIndex)·\(pointIndex + 1)"
+                    label.fontSize = 12 / max(zoomScale, 0.001)
+                    label.foregroundColor = UIColor.white.cgColor
+                    label.backgroundColor = UIColor.black.withAlphaComponent(0.65).cgColor
+                    label.alignmentMode = .center; label.contentsScale = 3
+                    let width: CGFloat = loopIndex == 0 ? 22 : 42
+                    label.frame = CGRect(x: p.x + radius, y: p.y + radius, width: width / max(zoomScale, 0.001), height: 17 / max(zoomScale, 0.001))
+                    outlineLayer.addSublayer(label)
+                    path.append(UIBezierPath(ovalIn: CGRect(x: p.x-radius, y: p.y-radius, width: radius*2, height: radius*2)))
+                }
+                if outline.closed, outline.points.allSatisfy({ $0 != nil }), let first = outline.points.first ?? nil, let previous {
+                    path.move(to: previous); path.addLine(to: pixel(first))
+                }
+            }
+            outlineLayer.path = path.cgPath; outlineLayer.lineWidth = 2 / max(zoomScale, 0.001)
+        }
         func setPoint(_ point: CGPoint?) { selected = point; drawCross() }
         func centerImage() {
             let x = max(0, (bounds.width - photoView.frame.width) / 2)
             let y = max(0, (bounds.height - photoView.frame.height) / 2)
             let inset = UIEdgeInsets(top: y, left: x, bottom: y, right: x)
             if contentInset != inset { contentInset = inset }
-            drawCross()
+            drawCross(); drawOutlines()
         }
         private func drawCross() {
             guard let selected else { cross.path = nil; return }
