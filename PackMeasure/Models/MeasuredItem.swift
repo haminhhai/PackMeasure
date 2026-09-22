@@ -13,6 +13,13 @@ struct MeasuredItem: Identifiable, Codable, Hashable, Sendable {
     var capturedAt: Date
     var stackability: ItemStackability
     var orientationPolicy: ItemOrientationPolicy
+    /// `nil` for items saved before per-angle provenance existed. The UI must
+    /// say so rather than substitute rows.
+    var angleMeasurements: [AngleMeasurement]?
+    /// Which rule derived the accepted value. `nil` for untagged legacy items.
+    var resolutionRule: ResolutionRule?
+    /// `nil` when the item predates tolerance evaluation.
+    var toleranceStatus: ToleranceStatus?
 
     init(
         id: UUID = UUID(),
@@ -26,7 +33,10 @@ struct MeasuredItem: Identifiable, Codable, Hashable, Sendable {
         comparisonAgreementCount: Int? = nil,
         capturedAt: Date = .now,
         stackability: ItemStackability = .notStackable,
-        orientationPolicy: ItemOrientationPolicy = .keepUpright
+        orientationPolicy: ItemOrientationPolicy = .keepUpright,
+        angleMeasurements: [AngleMeasurement]? = nil,
+        resolutionRule: ResolutionRule? = nil,
+        toleranceStatus: ToleranceStatus? = nil
     ) {
         self.id = id
         self.name = name
@@ -40,6 +50,9 @@ struct MeasuredItem: Identifiable, Codable, Hashable, Sendable {
         self.capturedAt = capturedAt
         self.stackability = stackability
         self.orientationPolicy = orientationPolicy
+        self.angleMeasurements = angleMeasurements
+        self.resolutionRule = resolutionRule
+        self.toleranceStatus = toleranceStatus
     }
 
     var footprintSquareFeet: Double {
@@ -82,6 +95,9 @@ struct MeasuredItem: Identifiable, Codable, Hashable, Sendable {
         case capturedAt
         case stackability
         case orientationPolicy
+        case angleMeasurements
+        case resolutionRule
+        case toleranceStatus
     }
 
     init(from decoder: Decoder) throws {
@@ -107,6 +123,18 @@ struct MeasuredItem: Identifiable, Codable, Hashable, Sendable {
             ItemOrientationPolicy.self,
             forKey: .orientationPolicy
         ) ?? .keepUpright
+        angleMeasurements = try container.decodeIfPresent(
+            [AngleMeasurement].self,
+            forKey: .angleMeasurements
+        )
+        // A rule or status written by a newer build decodes as nil instead of
+        // throwing, so a forward-written file still loads.
+        resolutionRule = ResolutionRule(
+            rawValue: try container.decodeIfPresent(String.self, forKey: .resolutionRule) ?? ""
+        )
+        toleranceStatus = ToleranceStatus(
+            rawValue: try container.decodeIfPresent(String.self, forKey: .toleranceStatus) ?? ""
+        )
     }
 
     func encode(to encoder: Encoder) throws {
@@ -126,6 +154,9 @@ struct MeasuredItem: Identifiable, Codable, Hashable, Sendable {
         try container.encode(capturedAt, forKey: .capturedAt)
         try container.encode(stackability, forKey: .stackability)
         try container.encode(orientationPolicy, forKey: .orientationPolicy)
+        try container.encodeIfPresent(angleMeasurements, forKey: .angleMeasurements)
+        try container.encodeIfPresent(resolutionRule?.rawValue, forKey: .resolutionRule)
+        try container.encodeIfPresent(toleranceStatus?.rawValue, forKey: .toleranceStatus)
     }
 }
 
@@ -162,6 +193,36 @@ enum ScanConfidence: String, Codable, CaseIterable, Sendable {
         case .low:
             "Low confidence. Retake before relying on this measurement"
         }
+    }
+}
+
+/// Names the rule that derived an accepted value from disagreeing angles, so
+/// results stay comparable across versions that resolve them differently.
+enum ResolutionRule: String, Codable, CaseIterable, Hashable, Sendable {
+    /// Retain the larger supported value on each agreeing axis.
+    case largestAgreeingValue
+
+    /// Median of three angles, or the midpoint of two.
+    case trimmedConsensus
+
+    var displayName: String {
+        switch self {
+        case .largestAgreeingValue: "Largest agreeing value"
+        case .trimmedConsensus: "Trimmed consensus"
+        }
+    }
+}
+
+/// Whether the evidence behind a measurement supports the stated accuracy
+/// tolerance. `unknown` is the honest initial state on a device with no
+/// calibration history and must never be presented as `withinTolerance`.
+enum ToleranceStatus: String, Codable, CaseIterable, Hashable, Sendable {
+    case withinTolerance
+    case belowTolerance
+    case unknown
+
+    var requiresRetakeOffer: Bool {
+        self == .belowTolerance
     }
 }
 

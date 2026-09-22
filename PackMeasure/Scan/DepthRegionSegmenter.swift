@@ -38,9 +38,15 @@ struct DepthRegion: Sendable {
 
 /// Finds the connected depth surface under the center reticle.
 ///
-/// The global seed-distance guard prevents the walk from leaking far behind
-/// the target, while the local gradient guard allows it to follow a visible
-/// side or top face that gradually recedes from the camera.
+/// Three guards bound the walk. The local gradient guard lets it follow a
+/// visible side or top face that gradually recedes from the camera. The global
+/// seed-distance guard stops it leaking far behind the target. The cumulative
+/// travel guard stops the case the other two miss: a connected depth ramp onto
+/// an adjacent pallet, shelf, wall, or neighbouring carton, where every
+/// individual step is small and the endpoint still sits inside the global
+/// budget. That path inflates one horizontal axis while leaving the other two
+/// correct, which is the signature recorded in
+/// specs/001-measurement-accuracy-units/research.md R1.
 struct DepthRegionSegmenter: Sendable {
     var minimumConfidence: UInt8 = 1
     var minimumDepthMeters: Float = 0.15
@@ -49,6 +55,14 @@ struct DepthRegionSegmenter: Sendable {
     var localJumpFraction: Float = 0.035
     var maximumSeedDeltaMeters: Float = 0.75
     var maximumSeedDeltaFraction: Float = 0.45
+    /// Total depth change permitted along the walk path from the seed. A
+    /// carton's own visible faces have a bounded depth span; a ramp onto an
+    /// adjacent surface does not.
+    ///
+    /// The default is a containment budget, not a calibrated value. Tasks T027
+    /// and T028 set the shipped figure from recorded device data.
+    var maximumCumulativeDepthTravelMeters: Float = 0.35
+    var maximumCumulativeDepthTravelFraction: Float = 0.15
     var seedSearchRadius: Int = 3
 
     func segment(_ grid: DepthGrid) -> DepthRegion? {
@@ -56,7 +70,16 @@ struct DepthRegionSegmenter: Sendable {
         let seedDepth = grid.depths[seed]
         let maxSeedDelta = max(maximumSeedDeltaMeters, seedDepth * maximumSeedDeltaFraction)
 
+        let maxCumulativeTravel = max(
+            maximumCumulativeDepthTravelMeters,
+            seedDepth * maximumCumulativeDepthTravelFraction
+        )
+
         var visited = Array(repeating: false, count: grid.depths.count)
+        // Depth travelled along the breadth-first path that first reached each
+        // pixel. Breadth-first order keeps this deterministic and, for the
+        // monotonic ramps this guard targets, close to minimal.
+        var cumulativeTravel = Array(repeating: Float(0), count: grid.depths.count)
         var accepted: [Int] = []
         var queue: [Int] = [seed]
         var readIndex = 0
@@ -70,6 +93,7 @@ struct DepthRegionSegmenter: Sendable {
             let x = index % grid.width
             let y = index / grid.width
             let currentDepth = grid.depths[index]
+            let currentTravel = cumulativeTravel[index]
 
             for neighbor in neighbors(x: x, y: y, width: grid.width, height: grid.height) {
                 guard !visited[neighbor] else { continue }
@@ -79,8 +103,14 @@ struct DepthRegionSegmenter: Sendable {
                 guard isUsable(index: neighbor, in: grid) else { continue }
                 guard abs(candidateDepth - seedDepth) <= maxSeedDelta else { continue }
 
+                let step = abs(candidateDepth - currentDepth)
                 let localLimit = max(localJumpMeters, currentDepth * localJumpFraction)
-                guard abs(candidateDepth - currentDepth) <= localLimit else { continue }
+                guard step <= localLimit else { continue }
+
+                let travel = currentTravel + step
+                guard travel <= maxCumulativeTravel else { continue }
+
+                cumulativeTravel[neighbor] = travel
                 queue.append(neighbor)
             }
         }

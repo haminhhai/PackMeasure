@@ -1,5 +1,12 @@
 import Foundation
 
+/// Unit-agnostic conversions shared by the frozen packing domain, which works
+/// in inches and cubic feet.
+///
+/// Operator-facing dimension strings are not built here. They go through
+/// `DimensionFormatter`, which follows the chosen display unit and names each
+/// axis. The feet-and-inches string helpers this type used to expose were
+/// removed with the unit feature.
 enum MeasurementMath {
     static func inches(from meters: Double) -> Double {
         meters * 39.370_078_740_157_48
@@ -15,17 +22,6 @@ enum MeasurementMath {
 
     static func cubicFeet(_ cubicMeters: Double) -> Double {
         cubicMeters * 35.3147
-    }
-
-    static func inchString(from meters: Double) -> String {
-        let roundedTotalInches = max(0, Int(inches(from: meters).rounded()))
-        let wholeFeet = roundedTotalInches / 12
-        let remainingInches = roundedTotalInches % 12
-        return "\(wholeFeet) ft \(remainingInches) in"
-    }
-
-    static func decimalFeetString(from meters: Double) -> String {
-        String(format: "%.1f ft", feet(from: meters))
     }
 
     static func decimalSquareFeetString(_ value: Double) -> String {

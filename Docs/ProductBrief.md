@@ -1,10 +1,21 @@
 # PackMeasure native MVP
 
+## Product target
+
+PackMeasure measures one package, box, or carton at a time so its dimensions can
+be recorded in a warehouse materials-management workflow. The measured object is
+the deliverable.
+
+The app was originally built to estimate a moving load and recommend a van or
+truck. That is no longer the goal. The vehicle and load-planning features remain
+in the app but are frozen: they receive no further work, and the unit preference
+does not apply to them.
+
 ## Outcome
 
 PackMeasure compares independent iPhone capture angles to estimate a packing
-bounding box for a centered object, saves the item, and recommends the smallest
-vehicle profile that can carry the accumulated inventory.
+bounding box for a centered carton and saves it with the evidence behind the
+estimate.
 
 After a short settling interval, the capture processes one synchronized camera
 and LiDAR depth frame. The user does not place a reference object, calibrate a
@@ -32,7 +43,9 @@ scale, or tap measurement endpoints.
   labeled and offer a retake rather than silently reporting false precision.
 - Save remains disabled until at least two independent viewpoints agree on all
   three raw dimensions. The second camera position must be at least 15 cm away
-  horizontally and 25 degrees around the stationary object.
+  horizontally and 20 degrees around the stationary object, as enforced by
+  `MeasurementViewpointPolicy`. (This document previously said 25 degrees, which
+  never matched the shipped value.)
 - Pair agreement currently requires every raw axis to differ by no more than
   1.5 inches and 15%, with no more than a 20% rectangular-volume spread. These
   are provisional repeatability gates and require calibration on more objects.
@@ -49,8 +62,35 @@ scale, or tap measurement endpoints.
   as a shape-agnostic fallback while retaining floor and background rejection.
 - Real-device calibration against known boxes is part of the definition of
   done. Simulator builds alone cannot verify LiDAR behavior.
+- The stated per-axis tolerance is 5% and 20 mm. A measurement whose evidence
+  cannot support it is labeled below tolerance and offers a retake. On a device
+  with no calibration history, accuracy reads as not verified and is never
+  presented as a pass.
+- Lateral region bleed onto an adjacent pallet, shelf, wall, or neighbouring
+  carton is contained by a cumulative depth-travel budget in the segmenter. The
+  shipped budget is a containment default and still needs a device sweep.
+- Every accepted measurement records the rule that produced it and the
+  per-angle measurements behind it, so a suspect result stays auditable.
 
-## Vehicle contract
+## Units contract
+
+- Internal geometry stays in SI meters. Conversion happens at display and at
+  manual-entry parse, nowhere else.
+- The operator chooses millimeters, centimeters, meters, inches, or feet and
+  inches. The choice applies to every measured dimension the app shows or
+  accepts, persists across launches, and defaults from the device region.
+- Changing the unit never rewrites a stored measurement. Switching away and back
+  returns the original figures.
+- Size limits are enforced in meters after conversion, so the same physical
+  bounds apply whichever unit is typed in.
+- Every displayed dimension names its axis. Length, width, and height mean the
+  same physical axis in scan results, manual entry, calibration, and detail.
+
+## Vehicle contract (frozen)
+
+Retained for existing data and no longer a product goal. Not extended by
+current work.
+
 
 - Recommendation must satisfy adjusted capacity and largest-item clearance.
 - Floor square feet and cubic feet are both reported because neither alone is
@@ -60,7 +100,9 @@ scale, or tap measurement endpoints.
 
 ## MVP acceptance criteria
 
-- App builds for iOS 27 and launches on a LiDAR-capable iPhone.
+- App builds against the iOS deployment target in `project.yml` (currently 18.6)
+  with Xcode 27, and launches on a LiDAR-capable iPhone. (This document
+  previously said "iOS 27", conflating the Xcode version with the OS target.)
 - Camera permission and LiDAR support checks are handled.
 - A known rectangular box can be scanned, reviewed, and saved.
 - Inventory survives relaunch.

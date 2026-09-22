@@ -602,6 +602,8 @@ struct MeasurementARView: UIViewRepresentable {
 
         private static func failureMessage(for failure: MeasurementEstimationFailure) -> String {
             switch failure {
+            case .targetRejected(.adjacentSurfaceContamination):
+                CenteredTargetRejection.adjacentSurfaceContamination.reason
             case .targetRejected(.floorSurface):
                 "The photo appears to target the floor. Keep one whole object centered and retake it."
             case .targetRejected(.insufficientSurfaceEvidence), .insufficientFrames:
@@ -1916,20 +1918,12 @@ struct MeasurementARView: UIViewRepresentable {
             )
             guard orientedSize.width > 0, orientedSize.height > 0 else { return nil }
 
-            let transform: CGAffineTransform
-            if #available(iOS 27.0, *) {
-                // PackMeasure is portrait-only, and ARKit expresses this angle
-                // in degrees for the iOS 27 display-transform API.
-                transform = frame.displayTransform(
-                    viewRotationAngle: 90,
-                    viewportSize: orientedSize
-                )
-            } else {
-                transform = frame.displayTransform(
-                    for: .portrait,
-                    viewportSize: orientedSize
-                )
-            }
+            // PackMeasure is portrait-only, so the captured image always maps
+            // through the portrait display transform.
+            let transform = frame.displayTransform(
+                for: .portrait,
+                viewportSize: orientedSize
+            )
 
             let displayOutline = outline.mappingPoints { point in
                 let mapped = CGPoint(

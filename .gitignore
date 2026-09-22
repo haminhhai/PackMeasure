@@ -6,3 +6,5 @@ xcuserdata/
 *.xcscmblueprint
 .DS_Store
 Artifacts/
+*.swiftpm/
+Packages/

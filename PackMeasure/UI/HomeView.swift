@@ -3,10 +3,13 @@ import SwiftUI
 struct HomeView: View {
     @Environment(AppModel.self) private var appModel
     @State private var manualEntryPresented = false
+    @State private var settingsPresented = false
+    @State private var calibrationPresented = false
 
     var body: some View {
         NavigationStack {
             List {
+                accuracySection
                 spaceNeededSection
                 loadMixSection
                 vehicleSection
@@ -14,8 +17,25 @@ struct HomeView: View {
                 planningDisclaimerSection
             }
             .navigationTitle("PackMeasure")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        settingsPresented = true
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+                }
+            }
             .safeAreaInset(edge: .bottom) {
                 entryActions
+            }
+            .sheet(isPresented: $settingsPresented) {
+                SettingsView()
+                    .environment(appModel)
+            }
+            .sheet(isPresented: $calibrationPresented) {
+                CalibrationView()
+                    .environment(appModel)
             }
             .sheet(isPresented: scannerPresented) {
                 ScannerSheetView()
@@ -57,7 +77,7 @@ struct HomeView: View {
     private var loadMixSelection: Binding<PackingLoadMix> {
         Binding(
             get: { appModel.loadMix },
-            set: appModel.setLoadMix
+            set: { appModel.setLoadMix($0) }
         )
     }
 
@@ -67,6 +87,66 @@ struct HomeView: View {
 
     private var recommendation: PackingVehicleRecommendation {
         appModel.vehicleRecommendation
+    }
+
+    /// Surfaces this device's accuracy state wherever measurements are shown.
+    /// `unknown` says so plainly rather than implying a pass (FR-029).
+    private var accuracySection: some View {
+        Section {
+            Button {
+                calibrationPresented = true
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: accuracyIcon)
+                        .foregroundStyle(accuracyIconColor)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(accuracyTitle)
+                            .font(.subheadline.weight(.medium))
+                        Text(accuracyDetail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityHint("Opens the calibration check")
+        }
+    }
+
+    private var accuracyIcon: String {
+        switch appModel.deviceCalibrationWithinTolerance {
+        case .some(true): "checkmark.seal"
+        case .some(false): "exclamationmark.triangle.fill"
+        case nil: "questionmark.circle"
+        }
+    }
+
+    private var accuracyIconColor: Color {
+        switch appModel.deviceCalibrationWithinTolerance {
+        case .some(true): .green
+        case .some(false): .orange
+        case nil: .secondary
+        }
+    }
+
+    private var accuracyTitle: String {
+        switch appModel.deviceCalibrationWithinTolerance {
+        case .some(true): "Measurements verified on this device"
+        case .some(false): "Measurements are outside tolerance"
+        case nil: "Accuracy not verified yet"
+        }
+    }
+
+    private var accuracyDetail: String {
+        switch appModel.deviceCalibrationWithinTolerance {
+        case .some(true):
+            "The last calibration check was within 5% and 20 mm. Check again after a drop or an iOS update."
+        case .some(false):
+            "The last calibration check missed the tolerance. Sizes here may be wrong until a later check passes."
+        case nil:
+            "Measure a carton you have already measured with a tape to see how far off this device is."
+        }
     }
 
     private var spaceNeededSection: some View {
@@ -161,10 +241,10 @@ struct HomeView: View {
                         ItemPackingEditorView(item: item)
                             .environment(appModel)
                     } label: {
-                        ItemRow(item: item)
+                        ItemRow(item: item, formatter: appModel.dimensionFormatter)
                     }
                 }
-                .onDelete(perform: appModel.deleteItems)
+                .onDelete { appModel.deleteItems(at: $0) }
             }
         }
     }
@@ -314,6 +394,7 @@ private struct DetailLine: View {
 
 private struct ItemRow: View {
     let item: MeasuredItem
+    let formatter: DimensionFormatter
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -326,12 +407,8 @@ private struct ItemRow: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text(
-                "\(MeasurementMath.inchString(from: item.lengthMeters)) × " +
-                "\(MeasurementMath.inchString(from: item.widthMeters)) × " +
-                "\(MeasurementMath.inchString(from: item.heightMeters))"
-            )
-            .font(.subheadline)
+            DimensionSummary(formatter: formatter, item: item)
+                .font(.subheadline)
 
             HStack(spacing: 8) {
                 Label(stackDescription, systemImage: "square.3.layers.3d")
@@ -410,10 +487,18 @@ private struct ItemPackingEditorView: View {
             Section("Item") {
                 TextField("Item name", text: $name)
                 Stepper("Quantity: \(quantity)", value: $quantity, in: 1 ... 999)
-                LabeledContent(
-                    "Measured size",
-                    value: "\(MeasurementMath.inchString(from: item.lengthMeters)) × \(MeasurementMath.inchString(from: item.widthMeters)) × \(MeasurementMath.inchString(from: item.heightMeters))"
+                DimensionRows(
+                    formatter: appModel.dimensionFormatter,
+                    lengthMeters: item.lengthMeters,
+                    widthMeters: item.widthMeters,
+                    heightMeters: item.heightMeters
                 )
+                NavigationLink {
+                    MeasurementDetailView(item: item)
+                        .environment(appModel)
+                } label: {
+                    Text("How this was measured")
+                }
             }
 
             Section {

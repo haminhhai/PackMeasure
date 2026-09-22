@@ -90,3 +90,30 @@ enum BoundingBoxEstimationError: Error, Equatable, Sendable {
     case degeneratePointCloud
     case groundPlaneContamination
 }
+
+/// The product's stated per-axis accuracy commitment. A measurement is within
+/// tolerance only when it satisfies both bounds, because a small carton can
+/// pass a percentage test while failing an absolute one and vice versa.
+struct AccuracyTolerance: Equatable, Sendable {
+    var maximumRelativeError: Double
+    var maximumAbsoluteErrorMeters: Double
+
+    static let standard = AccuracyTolerance(
+        maximumRelativeError: 0.05,
+        maximumAbsoluteErrorMeters: 0.020
+    )
+
+    init(maximumRelativeError: Double = 0.05, maximumAbsoluteErrorMeters: Double = 0.020) {
+        self.maximumRelativeError = maximumRelativeError
+        self.maximumAbsoluteErrorMeters = maximumAbsoluteErrorMeters
+    }
+
+    /// `trueValue` must be positive; a non-positive truth cannot be scored and
+    /// fails closed rather than reporting a passing result.
+    func isWithinTolerance(measured: Double, trueValue: Double) -> Bool {
+        guard measured.isFinite, trueValue.isFinite, trueValue > 0 else { return false }
+        let absoluteError = abs(measured - trueValue)
+        return absoluteError <= maximumAbsoluteErrorMeters
+            && absoluteError / trueValue <= maximumRelativeError
+    }
+}

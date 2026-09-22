@@ -11,13 +11,21 @@ enum ManualEntryValidationError: Error, Equatable {
 
 extension ManualEntryValidationError: LocalizedError {
     var errorDescription: String? {
+        message(in: .inches)
+    }
+
+    /// The limit is quoted in the unit the operator typed in, never translated
+    /// back to inches (FR-023).
+    func message(in unit: MeasurementUnit) -> String {
         switch self {
         case .missingDimensions:
-            "Enter length, width, and height as numbers in inches."
+            "Enter length, width, and height as numbers in \(unit.symbol)."
         case .nonPositiveDimensions:
             "Every dimension must be greater than zero."
         case .dimensionsTooLarge:
-            "Every dimension must be 480 inches (40 ft) or less."
+            "Every dimension must be "
+            + unit.formatted(fromMeters: MeasurementBounds.maximumMeters)
+            + " or less."
         case .invalidQuantity:
             "Quantity must be between 1 and 999."
         case .invalidStackLimit:
@@ -43,6 +51,8 @@ struct ManualEntrySubmission {
 struct ManualEntryDraft {
     static let maximumDimensionInches = 480.0
 
+    /// The unit the three dimension fields are typed in.
+    var unit: MeasurementUnit = .inches
     var name = ""
     var quantity = 1
     var lengthInches = ""
@@ -76,6 +86,8 @@ struct ManualEntryDraft {
         do {
             _ = try validatedSubmission()
             return nil
+        } catch let error as ManualEntryValidationError {
+            return error.message(in: unit)
         } catch {
             return error.localizedDescription
         }
@@ -95,10 +107,10 @@ struct ManualEntryDraft {
             throw ManualEntryValidationError.nonPositiveDimensions
         }
 
-        guard length <= Self.maximumDimensionInches,
-              width <= Self.maximumDimensionInches,
-              height <= Self.maximumDimensionInches
-        else {
+        // Convert once, then enforce the bounds in meters. The typed unit
+        // changes what the operator writes, never the physical limit.
+        let meters = [length, width, height].map(unit.meters(fromValue:))
+        guard meters.allSatisfy({ $0 <= MeasurementBounds.maximumMeters }) else {
             throw ManualEntryValidationError.dimensionsTooLarge
         }
 
@@ -115,9 +127,9 @@ struct ManualEntryDraft {
             name: trimmedName.isEmpty ? "Manual item" : trimmedName,
             quantity: quantity,
             dimensions: try ItemDimensions(
-                lengthInches: length,
-                widthInches: width,
-                heightInches: height
+                lengthInches: MeasurementUnit.inches.value(fromMeters: meters[0]),
+                widthInches: MeasurementUnit.inches.value(fromMeters: meters[1]),
+                heightInches: MeasurementUnit.inches.value(fromMeters: meters[2])
             ),
             stackability: isStackable
                 ? .stackable(maxLayers: maxStackLayers)
@@ -176,9 +188,21 @@ struct ManualEntryView: View {
                 }
 
                 Section {
-                    dimensionField("Length", text: $draft.lengthInches, field: .length)
-                    dimensionField("Width", text: $draft.widthInches, field: .width)
-                    dimensionField("Height", text: $draft.heightInches, field: .height)
+                    dimensionField(
+                        DimensionAxis.length.displayName,
+                        text: $draft.lengthInches,
+                        field: .length
+                    )
+                    dimensionField(
+                        DimensionAxis.width.displayName,
+                        text: $draft.widthInches,
+                        field: .width
+                    )
+                    dimensionField(
+                        DimensionAxis.height.displayName,
+                        text: $draft.heightInches,
+                        field: .height
+                    )
 
                     if draft.hasDimensionInput,
                        let message = draft.validationMessage,
@@ -191,7 +215,14 @@ struct ManualEntryView: View {
                 } header: {
                     Text("Dimensions")
                 } footer: {
-                    Text("Enter the outside measurements in inches. Decimals are okay; for example, use 24.5 for 24½ inches.")
+                    Text(
+                        "Enter the outside measurements in \(appModel.measurementUnit.symbol). "
+                        + "Decimals are okay. Maximum "
+                        + appModel.measurementUnit.formatted(
+                            fromMeters: MeasurementBounds.maximumMeters
+                        )
+                        + " per dimension."
+                    )
                 }
 
                 if let preview = draft.preview {
@@ -240,6 +271,12 @@ struct ManualEntryView: View {
                 }
             }
             .navigationTitle("Enter dimensions")
+            .onAppear { draft.unit = appModel.measurementUnit }
+            .onChange(of: appModel.measurementUnit) { _, unit in
+                // Typed digits are kept as typed; only their unit changes, so
+                // the operator is never silently re-scaled.
+                draft.unit = unit
+            }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -276,8 +313,8 @@ struct ManualEntryView: View {
                     .multilineTextAlignment(.trailing)
                     .focused($focusedField, equals: field)
                     .frame(minWidth: 80)
-                    .accessibilityLabel("\(title) in inches")
-                Text("in")
+                    .accessibilityLabel("\(title) in \(appModel.measurementUnit.symbol)")
+                Text(appModel.measurementUnit.symbol)
                     .foregroundStyle(.secondary)
             }
         }
@@ -287,6 +324,8 @@ struct ManualEntryView: View {
         do {
             try draft.save(to: appModel)
             dismiss()
+        } catch let error as ManualEntryValidationError {
+            saveError = error.message(in: draft.unit)
         } catch {
             saveError = error.localizedDescription
         }

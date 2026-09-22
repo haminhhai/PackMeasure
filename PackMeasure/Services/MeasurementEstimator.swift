@@ -12,6 +12,25 @@ struct CenteredTargetSurfaceSample: Equatable, Sendable {
 enum CenteredTargetRejection: Equatable, Sendable {
     case floorSurface
     case insufficientSurfaceEvidence
+    /// The measured region could not be separated from an adjacent pallet,
+    /// shelf, wall, or neighbouring carton. Named separately from
+    /// `floorSurface` because the operator's remedy is different: move the
+    /// carton clear rather than re-aim.
+    case adjacentSurfaceContamination
+
+    /// Operator-facing reason. Names the obstruction so the remedy is obvious
+    /// (FR-003).
+    var reason: String {
+        switch self {
+        case .floorSurface:
+            "That looks like the floor. Aim at the carton itself and try again."
+        case .insufficientSurfaceEvidence:
+            "Not enough surface detail to measure. Move closer and try again."
+        case .adjacentSurfaceContamination:
+            "The carton could not be separated from the surface behind or beside it. "
+            + "Move it clear of the wall, pallet, or neighbouring box and try again."
+        }
+    }
 }
 
 enum CenteredTargetValidation: Equatable, Sendable {
@@ -347,6 +366,53 @@ struct MeasurementCompletenessPolicy: Equatable, Sendable {
     }
 }
 
+/// Decides whether a measurement's evidence supports the stated accuracy
+/// tolerance (FR-001, FR-002).
+///
+/// `unknown` is returned when this device has no calibration history. It is the
+/// honest answer, and the UI must not render it as if it were
+/// `withinTolerance`.
+struct MeasurementTolerancePolicy: Equatable, Sendable {
+    var tolerance = AccuracyTolerance.standard
+    /// Largest relative spread permitted between contributing angles on any
+    /// axis before the result is treated as unsupported.
+    var maximumAngleSpreadFraction: Double = 0.05
+
+    func status(
+        confidence: ScanConfidence,
+        angleMeasurements: [AngleMeasurement],
+        deviceCalibrationWithinTolerance: Bool?
+    ) -> ToleranceStatus {
+        // A device that has measured outside tolerance stays flagged until a
+        // later run says otherwise (FR-029).
+        if deviceCalibrationWithinTolerance == false {
+            return .belowTolerance
+        }
+        if confidence == .low {
+            return .belowTolerance
+        }
+        if exceedsSpread(angleMeasurements) {
+            return .belowTolerance
+        }
+        guard deviceCalibrationWithinTolerance == true else {
+            return .unknown
+        }
+        return .withinTolerance
+    }
+
+    func exceedsSpread(_ angleMeasurements: [AngleMeasurement]) -> Bool {
+        let contributing = angleMeasurements.filter(\.agreedWithConsensus)
+        guard contributing.count >= 2 else { return false }
+        return DimensionAxis.allCases.contains { axis in
+            let values = contributing.map { $0.value(for: axis) }
+            guard let low = values.min(), let high = values.max(), high > 0 else {
+                return false
+            }
+            return (high - low) / high > maximumAngleSpreadFraction
+        }
+    }
+}
+
 struct MeasurementCameraViewpoint: Equatable, Sendable {
     static let minimumHorizontalForwardMagnitude: Float = 0.10
 
@@ -609,9 +675,39 @@ struct MultiAngleMeasurementConsensusPolicy: Equatable, Sendable {
 struct MultiAngleMeasurementWorkflow: Equatable, Sendable {
     private(set) var captures: [MeasurementAngleCapture] = []
     private(set) var progress = MultiAngleMeasurementProgress.awaitingFirstAngle
+    /// Indices of the captures that formed the accepted consensus. Empty until
+    /// a result is accepted.
+    private(set) var consensusCaptureIndices: Set<Int> = []
     var viewpointPolicy = MeasurementViewpointPolicy()
     var elevationDiversityPolicy = MeasurementElevationDiversityPolicy()
     var consensusPolicy = MultiAngleMeasurementConsensusPolicy()
+
+    /// Per-angle provenance for the accepted result. Derived values only: no
+    /// frame, buffer, or point cloud is retained between photos.
+    var angleMeasurements: [AngleMeasurement] {
+        guard case .accepted(let estimate) = progress else { return [] }
+        let acceptedAxes = estimate.normalizedDimensions
+        return captures.enumerated().map { index, capture in
+            let agreed = consensusCaptureIndices.contains(index)
+            let rows = capture.evidence.estimate.normalizedDimensions
+            var contributed: Set<DimensionAxis> = []
+            if agreed {
+                for (axisIndex, axis) in DimensionAxis.allCases.enumerated()
+                where abs(rows[axisIndex] - acceptedAxes[axisIndex]) <= 1e-9 {
+                    contributed.insert(axis)
+                }
+            }
+            return AngleMeasurement(
+                sequence: index + 1,
+                lengthMeters: rows[0],
+                widthMeters: rows[1],
+                heightMeters: rows[2],
+                pointCloudConfidence: capture.evidence.pointCloudConfidence,
+                agreedWithConsensus: agreed,
+                contributedAcceptedValue: contributed
+            )
+        }
+    }
 
     @discardableResult
     mutating func record(_ capture: MeasurementAngleCapture) -> MultiAngleMeasurementProgress {
@@ -631,6 +727,7 @@ struct MultiAngleMeasurementWorkflow: Equatable, Sendable {
     mutating func reset() {
         captures = []
         progress = .awaitingFirstAngle
+        consensusCaptureIndices = []
     }
 
     private mutating func recordUnresolved(
@@ -712,6 +809,7 @@ struct MultiAngleMeasurementWorkflow: Equatable, Sendable {
                    from: captures,
                    totalAngleCount: 3
                ) {
+                consensusCaptureIndices = Set(captures.indices)
                 progress = .accepted(estimate)
                 return progress
             }
@@ -737,6 +835,7 @@ struct MultiAngleMeasurementWorkflow: Equatable, Sendable {
             if hasLargerDiscordantCapture {
                 progress = .inconsistent(.dimensionsInconsistent)
             } else {
+                consensusCaptureIndices = selectedIndices
                 progress = .accepted(estimate)
             }
         default:
@@ -865,7 +964,7 @@ enum MeasurementEstimator {
     }
 }
 
-private extension MeasurementEstimate {
+fileprivate extension MeasurementEstimate {
     var normalizedDimensions: [Double] {
         [sortedBaseEdges[0], sortedBaseEdges[1], heightMeters]
     }

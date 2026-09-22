@@ -8,22 +8,38 @@
 
 /* Begin PBXBuildFile section */
 		0141497F0D32BC05C8BB0091 /* GuidedBoxMeasurementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE9A446CAB13BE0B780048E1 /* GuidedBoxMeasurementTests.swift */; };
+		03E53825915DEB6F538D4B9F /* DimensionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84BE2B68F4AB22BCFF9A7379 /* DimensionsView.swift */; };
 		09B7FEF948AAD6D288F89342 /* MeasurementEstimatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BEC26224D7E1CD00B41CDF5 /* MeasurementEstimatorTests.swift */; };
 		0C12718BED3478DDF2846719 /* ManualEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D4A5310F76E7632DEA4C529 /* ManualEntryView.swift */; };
+		0D4F02EC323BE7ACAA4F4CAF /* MeasurementDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36368B9620DEB6A50C7F4AD8 /* MeasurementDetailView.swift */; };
+		182EC72DFD473AD009FE1CC7 /* CalibrationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B98C99F389DE298F89FC884 /* CalibrationStore.swift */; };
+		1A05AD718969A25C24BBC707 /* CalibrationStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BBE171DE906F47C16404405 /* CalibrationStoreTests.swift */; };
+		2092CEEACC6BD3C6012C7EDB /* UnitPreferenceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3044DCAE3FAF51D1DE0EB78 /* UnitPreferenceStore.swift */; };
 		30BBD6FD335F3F0136F0B5BE /* GravityAlignedBoundingBoxEstimatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01DA76636D28E2A195DBE9FC /* GravityAlignedBoundingBoxEstimatorTests.swift */; };
+		3526E32C23F9794B72CCCAD2 /* CalibrationRunTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76556A0C36CB2928599D403D /* CalibrationRunTests.swift */; };
+		367410BA96EA024CD70CED4D /* AngleMeasurementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F412C5337123354707F805E1 /* AngleMeasurementTests.swift */; };
 		36DBA15AB0F050325DAEABCF /* DepthRegionSegmenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFE446F73A1491E55F2738CE /* DepthRegionSegmenter.swift */; };
 		3D0B36D28510CAD37D056EE5 /* PackMeasureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95C05B5C8AAFBFBE93F5F88 /* PackMeasureTests.swift */; };
 		42AD551A4A6F786DDA2A25F6 /* PhotoObjectMeasurementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53B7914EAEB1EDE13DA87022 /* PhotoObjectMeasurementTests.swift */; };
+		43E4EBAAFDE190CBEA933309 /* MeasurementTolerancePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC01D72BC00F9E03BB826E16 /* MeasurementTolerancePolicyTests.swift */; };
 		505B39CB31D0CC5449424178 /* ScannerSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84DFB60E2C6A4BA85E8C1AA0 /* ScannerSheetView.swift */; };
 		5108F38EA742072EDA5538BB /* MeasurementMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A6E5BC93C71F94AB333A1BF /* MeasurementMath.swift */; };
 		53E91AADA18D60E722530171 /* PackingPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE91F472F72AC07FEC8432F /* PackingPlanner.swift */; };
+		5545A02F687868EAA7C345F8 /* DimensionFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35ABCBFFE141D8D92FFDF0C6 /* DimensionFormatterTests.swift */; };
+		5B151B5D2EA2D694293977D1 /* MeasurementUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3BC989E320A837E1B622A26 /* MeasurementUnit.swift */; };
 		5E0B34A313A28EA94D945649 /* ScannerCapturePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87791FBEF3FF3863B53EF421 /* ScannerCapturePolicyTests.swift */; };
 		5E9AA3639748D36667D1C43C /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CF21F67461D439CFC0A0C93 /* AppModel.swift */; };
+		5F475312D844CB7BBDE136FA /* MeasurementDetailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB408CBE30F4875A69455034 /* MeasurementDetailTests.swift */; };
 		5F68845EACD6F3268807135E /* PhotoObjectMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790431810A5597537D5F330C /* PhotoObjectMeasurement.swift */; };
 		63ED8F2D2AA20E138544E34C /* AppModelInventoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B053787D5054BAAEE243C1 /* AppModelInventoryTests.swift */; };
 		649D27BD2AC2B2A76BE517DC /* GuidedBoxWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C32970059157769F21557D7 /* GuidedBoxWorkflow.swift */; };
 		6F4851E6263801CC3EE55EB6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B55DECA1C7432025218A0B8B /* Assets.xcassets */; };
+		70A4D31D9118FC23B749B30D /* CalibrationRun.swift in Sources */ = {isa = PBXBuildFile; fileRef = A063483736640ABF25641117 /* CalibrationRun.swift */; };
 		72B2BD9B3F2229A3E60FD7C9 /* MeasurementEstimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1FDBE8DEE3F3C0C88A2B2D8 /* MeasurementEstimator.swift */; };
+		76BA540D72A4B39211442539 /* InventorySchemaCompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20CB8A536240BDD9BE2E434 /* InventorySchemaCompatibilityTests.swift */; };
+		799B6470EE097266B7279E0F /* DimensionFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA4FD287FF0D96ECBF985EFA /* DimensionFormatter.swift */; };
+		852A2A0428E3E90FC6BEF3EE /* DimensionAxisTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947DFCE879742AB41F0429A5 /* DimensionAxisTests.swift */; };
+		893A71F85590FBEE68DFF6F6 /* DimensionAxis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 274F48707D22D33CCD9BC374 /* DimensionAxis.swift */; };
 		8AD56996B4FAC128B09E64BA /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77EE721A9A7420432B19066B /* HomeView.swift */; };
 		91AD755F1BCD2E4F9302040A /* GuidedBoxMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6C55F1052A5849E765D593B /* GuidedBoxMeasurement.swift */; };
 		948887BBF3D249A4522DDB48 /* ScannerCameraZoomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EF900F501945DF4F2CBD830 /* ScannerCameraZoomTests.swift */; };
@@ -31,14 +47,19 @@
 		9BEDDCCAB0B572616A1BE54E /* ManualEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96CE46D4CD43343EBB49FF22 /* ManualEntryTests.swift */; };
 		9C825739E009739E0C6D92F7 /* SingleShotObjectMeasurementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35CC0B9C38D98D8F0A49EDD3 /* SingleShotObjectMeasurementTests.swift */; };
 		9D2E80DD19A13FA9C3143DC2 /* GuidedBoxWorkflowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AA05B83704FCB14040623FB /* GuidedBoxWorkflowTests.swift */; };
+		A71503E9B5BDB9BD991D8A39 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D0CC0B6CE2E8F7C433568CC /* SettingsView.swift */; };
+		A7360E049DB17C6C71E83898 /* MeasurementUnitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF9A5C9EA1E7B23967E6AC02 /* MeasurementUnitTests.swift */; };
 		AFA54B21D376DF7B453E6AA6 /* SingleShotObjectMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA64797949F43B846C4EDD69 /* SingleShotObjectMeasurement.swift */; };
 		B39AADAB17187469145C4D4A /* GeometryModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E7680F43D417158C818E786 /* GeometryModels.swift */; };
 		B4AD52C415CCBB88280E366C /* GravityAlignedBoundingBoxEstimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 217FC74C59206B041DFB1042 /* GravityAlignedBoundingBoxEstimator.swift */; };
+		BECEFDB9CD8243E827F822DC /* UnitPreferenceStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C0160173C934D336E0AC35 /* UnitPreferenceStoreTests.swift */; };
 		C65D41867508C7250DFFCF99 /* RootPlaceholderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E081672C02985D42710156 /* RootPlaceholderView.swift */; };
 		C8136BC099CE8509D7A85305 /* MeasuredItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = CED5108414CFCAEB40DF57B3 /* MeasuredItem.swift */; };
 		CC0218C6FD04167826F2EDC3 /* DepthRegionSegmenterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C14B613C8CDA24C77CB2EDC9 /* DepthRegionSegmenterTests.swift */; };
+		CFB378BCD8AE0D0AE0B885DA /* AngleMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55996F4F5986FE161A27EDEE /* AngleMeasurement.swift */; };
 		DFC589F73318DFDF2A834553 /* PackingVehicles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0037980CC25246BD96274DD7 /* PackingVehicles.swift */; };
 		E481A09E4252F3209E588661 /* PackingPlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E719F590D3FE9941D195518 /* PackingPlannerTests.swift */; };
+		F6835E099B345CB2ADC9C175 /* CalibrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 207C7E3BDEB54DACE9BDF12B /* CalibrationView.swift */; };
 		F78E0F38BDC44E3CBE11ABC5 /* PackingModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E12DBF221D2E3F67479FE70 /* PackingModels.swift */; };
 		FECF4963AE2114674A0CC66B /* MeasurementARView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A913CFFAAADC0687F83660C2 /* MeasurementARView.swift */; };
 		FEF5BA8AADA1DCA7C9A86C38 /* InventoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50D2EE7F2FC2C52291CB68A3 /* InventoryStore.swift */; };
@@ -60,14 +81,22 @@
 		0BEC26224D7E1CD00B41CDF5 /* MeasurementEstimatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementEstimatorTests.swift; sourceTree = "<group>"; };
 		0CF21F67461D439CFC0A0C93 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		1AA05B83704FCB14040623FB /* GuidedBoxWorkflowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuidedBoxWorkflowTests.swift; sourceTree = "<group>"; };
+		1BBE171DE906F47C16404405 /* CalibrationStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalibrationStoreTests.swift; sourceTree = "<group>"; };
+		207C7E3BDEB54DACE9BDF12B /* CalibrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalibrationView.swift; sourceTree = "<group>"; };
 		217FC74C59206B041DFB1042 /* GravityAlignedBoundingBoxEstimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GravityAlignedBoundingBoxEstimator.swift; sourceTree = "<group>"; };
+		274F48707D22D33CCD9BC374 /* DimensionAxis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DimensionAxis.swift; sourceTree = "<group>"; };
+		35ABCBFFE141D8D92FFDF0C6 /* DimensionFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DimensionFormatterTests.swift; sourceTree = "<group>"; };
 		35CC0B9C38D98D8F0A49EDD3 /* SingleShotObjectMeasurementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleShotObjectMeasurementTests.swift; sourceTree = "<group>"; };
+		36368B9620DEB6A50C7F4AD8 /* MeasurementDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementDetailView.swift; sourceTree = "<group>"; };
+		3B98C99F389DE298F89FC884 /* CalibrationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalibrationStore.swift; sourceTree = "<group>"; };
+		3D0CC0B6CE2E8F7C433568CC /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		3D4A5310F76E7632DEA4C529 /* ManualEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualEntryView.swift; sourceTree = "<group>"; };
 		3E719F590D3FE9941D195518 /* PackingPlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackingPlannerTests.swift; sourceTree = "<group>"; };
 		4D518452488C8F3B0C8FACA8 /* PackMeasureApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackMeasureApp.swift; sourceTree = "<group>"; };
 		50D2EE7F2FC2C52291CB68A3 /* InventoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InventoryStore.swift; sourceTree = "<group>"; };
-		52BB0CB149BC91BF0DCF45E5 /* PackMeasure.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PackMeasure.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		52BB0CB149BC91BF0DCF45E5 /* PackMeasure.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PackMeasure.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		53B7914EAEB1EDE13DA87022 /* PhotoObjectMeasurementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoObjectMeasurementTests.swift; sourceTree = "<group>"; };
+		55996F4F5986FE161A27EDEE /* AngleMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AngleMeasurement.swift; sourceTree = "<group>"; };
 		5A6E5BC93C71F94AB333A1BF /* MeasurementMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementMath.swift; sourceTree = "<group>"; };
 		5E7680F43D417158C818E786 /* GeometryModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeometryModels.swift; sourceTree = "<group>"; };
 		5ED8ABA37AF0157830862257 /* PackMeasureTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PackMeasureTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -75,24 +104,37 @@
 		6C32970059157769F21557D7 /* GuidedBoxWorkflow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuidedBoxWorkflow.swift; sourceTree = "<group>"; };
 		6E12DBF221D2E3F67479FE70 /* PackingModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackingModels.swift; sourceTree = "<group>"; };
 		720B306F033EEFA5D3D7BADE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		76556A0C36CB2928599D403D /* CalibrationRunTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalibrationRunTests.swift; sourceTree = "<group>"; };
 		77EE721A9A7420432B19066B /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		790431810A5597537D5F330C /* PhotoObjectMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoObjectMeasurement.swift; sourceTree = "<group>"; };
+		84BE2B68F4AB22BCFF9A7379 /* DimensionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DimensionsView.swift; sourceTree = "<group>"; };
 		84DFB60E2C6A4BA85E8C1AA0 /* ScannerSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerSheetView.swift; sourceTree = "<group>"; };
 		87791FBEF3FF3863B53EF421 /* ScannerCapturePolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerCapturePolicyTests.swift; sourceTree = "<group>"; };
+		947DFCE879742AB41F0429A5 /* DimensionAxisTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DimensionAxisTests.swift; sourceTree = "<group>"; };
 		96CE46D4CD43343EBB49FF22 /* ManualEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualEntryTests.swift; sourceTree = "<group>"; };
+		A063483736640ABF25641117 /* CalibrationRun.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalibrationRun.swift; sourceTree = "<group>"; };
 		A913CFFAAADC0687F83660C2 /* MeasurementARView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementARView.swift; sourceTree = "<group>"; };
 		A95C05B5C8AAFBFBE93F5F88 /* PackMeasureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackMeasureTests.swift; sourceTree = "<group>"; };
+		AC01D72BC00F9E03BB826E16 /* MeasurementTolerancePolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementTolerancePolicyTests.swift; sourceTree = "<group>"; };
 		ACE91F472F72AC07FEC8432F /* PackingPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackingPlanner.swift; sourceTree = "<group>"; };
 		AE9A446CAB13BE0B780048E1 /* GuidedBoxMeasurementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuidedBoxMeasurementTests.swift; sourceTree = "<group>"; };
 		AFE446F73A1491E55F2738CE /* DepthRegionSegmenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepthRegionSegmenter.swift; sourceTree = "<group>"; };
+		B1C0160173C934D336E0AC35 /* UnitPreferenceStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitPreferenceStoreTests.swift; sourceTree = "<group>"; };
 		B55DECA1C7432025218A0B8B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B9E081672C02985D42710156 /* RootPlaceholderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootPlaceholderView.swift; sourceTree = "<group>"; };
 		C14B613C8CDA24C77CB2EDC9 /* DepthRegionSegmenterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepthRegionSegmenterTests.swift; sourceTree = "<group>"; };
+		C20CB8A536240BDD9BE2E434 /* InventorySchemaCompatibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InventorySchemaCompatibilityTests.swift; sourceTree = "<group>"; };
 		CED5108414CFCAEB40DF57B3 /* MeasuredItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasuredItem.swift; sourceTree = "<group>"; };
+		CF9A5C9EA1E7B23967E6AC02 /* MeasurementUnitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementUnitTests.swift; sourceTree = "<group>"; };
 		D1FDBE8DEE3F3C0C88A2B2D8 /* MeasurementEstimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementEstimator.swift; sourceTree = "<group>"; };
+		D3044DCAE3FAF51D1DE0EB78 /* UnitPreferenceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitPreferenceStore.swift; sourceTree = "<group>"; };
+		D3BC989E320A837E1B622A26 /* MeasurementUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementUnit.swift; sourceTree = "<group>"; };
 		D6C55F1052A5849E765D593B /* GuidedBoxMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuidedBoxMeasurement.swift; sourceTree = "<group>"; };
 		DA64797949F43B846C4EDD69 /* SingleShotObjectMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleShotObjectMeasurement.swift; sourceTree = "<group>"; };
+		EA4FD287FF0D96ECBF985EFA /* DimensionFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DimensionFormatter.swift; sourceTree = "<group>"; };
+		EB408CBE30F4875A69455034 /* MeasurementDetailTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementDetailTests.swift; sourceTree = "<group>"; };
 		F1B053787D5054BAAEE243C1 /* AppModelInventoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelInventoryTests.swift; sourceTree = "<group>"; };
+		F412C5337123354707F805E1 /* AngleMeasurementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AngleMeasurementTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -113,6 +155,7 @@
 			children = (
 				FC9EFD2DDADB849E2E799D52 /* Geometry */,
 				A5654DC13CC521A5140A57D2 /* Packing */,
+				53177A5F4C90EAA573F8A3EC /* Units */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -120,9 +163,11 @@
 		1CA9A427545D50C3BDC80A39 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				3B98C99F389DE298F89FC884 /* CalibrationStore.swift */,
 				50D2EE7F2FC2C52291CB68A3 /* InventoryStore.swift */,
 				D1FDBE8DEE3F3C0C88A2B2D8 /* MeasurementEstimator.swift */,
 				5A6E5BC93C71F94AB333A1BF /* MeasurementMath.swift */,
+				D3044DCAE3FAF51D1DE0EB78 /* UnitPreferenceStore.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -142,8 +187,11 @@
 		4089BD5673DEE233B6B9ADC4 /* UIInventory */ = {
 			isa = PBXGroup;
 			children = (
+				F412C5337123354707F805E1 /* AngleMeasurementTests.swift */,
 				F1B053787D5054BAAEE243C1 /* AppModelInventoryTests.swift */,
+				C20CB8A536240BDD9BE2E434 /* InventorySchemaCompatibilityTests.swift */,
 				96CE46D4CD43343EBB49FF22 /* ManualEntryTests.swift */,
+				EB408CBE30F4875A69455034 /* MeasurementDetailTests.swift */,
 				87791FBEF3FF3863B53EF421 /* ScannerCapturePolicyTests.swift */,
 			);
 			path = UIInventory;
@@ -176,9 +224,21 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		53177A5F4C90EAA573F8A3EC /* Units */ = {
+			isa = PBXGroup;
+			children = (
+				EA4FD287FF0D96ECBF985EFA /* DimensionFormatter.swift */,
+				D3BC989E320A837E1B622A26 /* MeasurementUnit.swift */,
+			);
+			path = Units;
+			sourceTree = "<group>";
+		};
 		53C23AC357E385BFD9880408 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				55996F4F5986FE161A27EDEE /* AngleMeasurement.swift */,
+				A063483736640ABF25641117 /* CalibrationRun.swift */,
+				274F48707D22D33CCD9BC374 /* DimensionAxis.swift */,
 				CED5108414CFCAEB40DF57B3 /* MeasuredItem.swift */,
 			);
 			path = Models;
@@ -188,6 +248,7 @@
 			isa = PBXGroup;
 			children = (
 				0BEC26224D7E1CD00B41CDF5 /* MeasurementEstimatorTests.swift */,
+				AC01D72BC00F9E03BB826E16 /* MeasurementTolerancePolicyTests.swift */,
 				5EF900F501945DF4F2CBD830 /* ScannerCameraZoomTests.swift */,
 			);
 			path = Scanner;
@@ -202,15 +263,26 @@
 			);
 			sourceTree = "<group>";
 		};
+		715282EF1D74873EFA1768B8 /* Calibration */ = {
+			isa = PBXGroup;
+			children = (
+				76556A0C36CB2928599D403D /* CalibrationRunTests.swift */,
+				1BBE171DE906F47C16404405 /* CalibrationStoreTests.swift */,
+			);
+			path = Calibration;
+			sourceTree = "<group>";
+		};
 		8A99611CA21A769C0B3410A5 /* PackMeasureTests */ = {
 			isa = PBXGroup;
 			children = (
 				A95C05B5C8AAFBFBE93F5F88 /* PackMeasureTests.swift */,
+				715282EF1D74873EFA1768B8 /* Calibration */,
 				EF55120B79DC16D1E08DDA9F /* Geometry */,
 				ED5EA5D42E70F1ED10BB220C /* Packing */,
 				357F00626456922FCFC8A164 /* Scan */,
 				5E257FE4DB6F6AA6C43111A4 /* Scanner */,
 				4089BD5673DEE233B6B9ADC4 /* UIInventory */,
+				A13308D69749021463C92FF2 /* Units */,
 			);
 			path = PackMeasureTests;
 			sourceTree = "<group>";
@@ -218,11 +290,26 @@
 		92321A6F7CF1557396C99898 /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				207C7E3BDEB54DACE9BDF12B /* CalibrationView.swift */,
+				84BE2B68F4AB22BCFF9A7379 /* DimensionsView.swift */,
 				77EE721A9A7420432B19066B /* HomeView.swift */,
 				3D4A5310F76E7632DEA4C529 /* ManualEntryView.swift */,
+				36368B9620DEB6A50C7F4AD8 /* MeasurementDetailView.swift */,
 				84DFB60E2C6A4BA85E8C1AA0 /* ScannerSheetView.swift */,
+				3D0CC0B6CE2E8F7C433568CC /* SettingsView.swift */,
 			);
 			path = UI;
+			sourceTree = "<group>";
+		};
+		A13308D69749021463C92FF2 /* Units */ = {
+			isa = PBXGroup;
+			children = (
+				947DFCE879742AB41F0429A5 /* DimensionAxisTests.swift */,
+				35ABCBFFE141D8D92FFDF0C6 /* DimensionFormatterTests.swift */,
+				CF9A5C9EA1E7B23967E6AC02 /* MeasurementUnitTests.swift */,
+				B1C0160173C934D336E0AC35 /* UnitPreferenceStoreTests.swift */,
+			);
+			path = Units;
 			sourceTree = "<group>";
 		};
 		A1A2FB0C19A8C9441080CAD9 /* Scanner */ = {
@@ -360,8 +447,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CFB378BCD8AE0D0AE0B885DA /* AngleMeasurement.swift in Sources */,
 				5E9AA3639748D36667D1C43C /* AppModel.swift in Sources */,
+				70A4D31D9118FC23B749B30D /* CalibrationRun.swift in Sources */,
+				182EC72DFD473AD009FE1CC7 /* CalibrationStore.swift in Sources */,
+				F6835E099B345CB2ADC9C175 /* CalibrationView.swift in Sources */,
 				36DBA15AB0F050325DAEABCF /* DepthRegionSegmenter.swift in Sources */,
+				893A71F85590FBEE68DFF6F6 /* DimensionAxis.swift in Sources */,
+				799B6470EE097266B7279E0F /* DimensionFormatter.swift in Sources */,
+				03E53825915DEB6F538D4B9F /* DimensionsView.swift in Sources */,
 				B39AADAB17187469145C4D4A /* GeometryModels.swift in Sources */,
 				B4AD52C415CCBB88280E366C /* GravityAlignedBoundingBoxEstimator.swift in Sources */,
 				91AD755F1BCD2E4F9302040A /* GuidedBoxMeasurement.swift in Sources */,
@@ -371,8 +465,10 @@
 				0C12718BED3478DDF2846719 /* ManualEntryView.swift in Sources */,
 				C8136BC099CE8509D7A85305 /* MeasuredItem.swift in Sources */,
 				FECF4963AE2114674A0CC66B /* MeasurementARView.swift in Sources */,
+				0D4F02EC323BE7ACAA4F4CAF /* MeasurementDetailView.swift in Sources */,
 				72B2BD9B3F2229A3E60FD7C9 /* MeasurementEstimator.swift in Sources */,
 				5108F38EA742072EDA5538BB /* MeasurementMath.swift in Sources */,
+				5B151B5D2EA2D694293977D1 /* MeasurementUnit.swift in Sources */,
 				9ACAC0C2DE532E56CF9C8912 /* PackMeasureApp.swift in Sources */,
 				F78E0F38BDC44E3CBE11ABC5 /* PackingModels.swift in Sources */,
 				53E91AADA18D60E722530171 /* PackingPlanner.swift in Sources */,
@@ -380,7 +476,9 @@
 				5F68845EACD6F3268807135E /* PhotoObjectMeasurement.swift in Sources */,
 				C65D41867508C7250DFFCF99 /* RootPlaceholderView.swift in Sources */,
 				505B39CB31D0CC5449424178 /* ScannerSheetView.swift in Sources */,
+				A71503E9B5BDB9BD991D8A39 /* SettingsView.swift in Sources */,
 				AFA54B21D376DF7B453E6AA6 /* SingleShotObjectMeasurement.swift in Sources */,
+				2092CEEACC6BD3C6012C7EDB /* UnitPreferenceStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -388,19 +486,29 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				367410BA96EA024CD70CED4D /* AngleMeasurementTests.swift in Sources */,
 				63ED8F2D2AA20E138544E34C /* AppModelInventoryTests.swift in Sources */,
+				3526E32C23F9794B72CCCAD2 /* CalibrationRunTests.swift in Sources */,
+				1A05AD718969A25C24BBC707 /* CalibrationStoreTests.swift in Sources */,
 				CC0218C6FD04167826F2EDC3 /* DepthRegionSegmenterTests.swift in Sources */,
+				852A2A0428E3E90FC6BEF3EE /* DimensionAxisTests.swift in Sources */,
+				5545A02F687868EAA7C345F8 /* DimensionFormatterTests.swift in Sources */,
 				30BBD6FD335F3F0136F0B5BE /* GravityAlignedBoundingBoxEstimatorTests.swift in Sources */,
 				0141497F0D32BC05C8BB0091 /* GuidedBoxMeasurementTests.swift in Sources */,
 				9D2E80DD19A13FA9C3143DC2 /* GuidedBoxWorkflowTests.swift in Sources */,
+				76BA540D72A4B39211442539 /* InventorySchemaCompatibilityTests.swift in Sources */,
 				9BEDDCCAB0B572616A1BE54E /* ManualEntryTests.swift in Sources */,
+				5F475312D844CB7BBDE136FA /* MeasurementDetailTests.swift in Sources */,
 				09B7FEF948AAD6D288F89342 /* MeasurementEstimatorTests.swift in Sources */,
+				43E4EBAAFDE190CBEA933309 /* MeasurementTolerancePolicyTests.swift in Sources */,
+				A7360E049DB17C6C71E83898 /* MeasurementUnitTests.swift in Sources */,
 				3D0B36D28510CAD37D056EE5 /* PackMeasureTests.swift in Sources */,
 				E481A09E4252F3209E588661 /* PackingPlannerTests.swift in Sources */,
 				42AD551A4A6F786DDA2A25F6 /* PhotoObjectMeasurementTests.swift in Sources */,
 				948887BBF3D249A4522DDB48 /* ScannerCameraZoomTests.swift in Sources */,
 				5E0B34A313A28EA94D945649 /* ScannerCapturePolicyTests.swift in Sources */,
 				9C825739E009739E0C6D92F7 /* SingleShotObjectMeasurementTests.swift in Sources */,
+				BECEFDB9CD8243E827F822DC /* UnitPreferenceStoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -421,6 +529,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = CS29XDHGDS;
 				INFOPLIST_FILE = PackMeasure/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -440,6 +549,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = CS29XDHGDS;
 				INFOPLIST_FILE = PackMeasure/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -488,7 +598,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 23;
+				CURRENT_PROJECT_VERSION = 24;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -500,8 +610,8 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 0.2.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				MARKETING_VERSION = 0.3.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -581,7 +691,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 23;
+				CURRENT_PROJECT_VERSION = 24;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -599,8 +709,8 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 0.2.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				MARKETING_VERSION = 0.3.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

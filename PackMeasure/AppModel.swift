@@ -9,11 +9,72 @@ final class AppModel {
     var bannerMessage: String?
     private(set) var loadMix: PackingLoadMix = .mixedHousehold
 
+    /// The operator's display unit. Presentation only: changing it never
+    /// rewrites a stored measurement.
+    private(set) var measurementUnit: MeasurementUnit
+
+    /// Completed known-carton checks, newest first. Device-scoped and never
+    /// transmitted anywhere.
+    private(set) var calibrationRuns: [CalibrationRun] = []
+
     @ObservationIgnored private let store: InventoryStore
+    @ObservationIgnored private let unitPreferenceStore: UnitPreferenceStore
+    @ObservationIgnored private let calibrationStore: CalibrationStore
+    @ObservationIgnored private let tolerancePolicy = MeasurementTolerancePolicy()
     @ObservationIgnored private var hasLoaded = false
 
-    init(store: InventoryStore = InventoryStore()) {
+    init(
+        store: InventoryStore = InventoryStore(),
+        unitPreferenceStore: UnitPreferenceStore = UnitPreferenceStore(),
+        calibrationStore: CalibrationStore = CalibrationStore()
+    ) {
         self.store = store
+        self.unitPreferenceStore = unitPreferenceStore
+        self.calibrationStore = calibrationStore
+        measurementUnit = unitPreferenceStore.load()
+    }
+
+    // MARK: - Calibration
+
+    /// `nil` until this device has a completed run. The UI must render that as
+    /// unknown, never as a pass (FR-029).
+    var deviceCalibrationWithinTolerance: Bool? {
+        calibrationRuns.deviceCalibrationWithinTolerance()
+    }
+
+    var isDeviceOutsideTolerance: Bool {
+        deviceCalibrationWithinTolerance == false
+    }
+
+    func recordCalibrationRun(_ run: CalibrationRun) {
+        do {
+            calibrationRuns = try calibrationStore.append(run)
+        } catch {
+            bannerMessage = "Could not save the calibration result."
+        }
+    }
+
+    func toleranceStatus(
+        confidence: ScanConfidence,
+        angleMeasurements: [AngleMeasurement]
+    ) -> ToleranceStatus {
+        tolerancePolicy.status(
+            confidence: confidence,
+            angleMeasurements: angleMeasurements,
+            deviceCalibrationWithinTolerance: deviceCalibrationWithinTolerance
+        )
+    }
+
+    /// The single formatter every surface reads, so no screen can drift onto a
+    /// different unit or a different axis name.
+    var dimensionFormatter: DimensionFormatter {
+        DimensionFormatter(unit: measurementUnit)
+    }
+
+    func setMeasurementUnit(_ unit: MeasurementUnit) {
+        guard unit != measurementUnit else { return }
+        measurementUnit = unit
+        unitPreferenceStore.save(unit)
     }
 
     func loadIfNeeded() {
@@ -25,6 +86,10 @@ final class AppModel {
         } catch {
             bannerMessage = "Could not load saved inventory."
         }
+
+        // A failure here must not block the inventory; calibration history is
+        // supporting evidence, not the operator's data.
+        calibrationRuns = (try? calibrationStore.load()) ?? []
     }
 
     func addItem(
@@ -32,7 +97,10 @@ final class AppModel {
         estimate: MeasurementEstimate,
         quantity: Int,
         stackability: ItemStackability = .notStackable,
-        orientationPolicy: ItemOrientationPolicy = .keepUpright
+        orientationPolicy: ItemOrientationPolicy = .keepUpright,
+        angleMeasurements: [AngleMeasurement]? = nil,
+        resolutionRule: ResolutionRule? = nil,
+        toleranceStatus: ToleranceStatus? = nil
     ) {
         items.append(
             MeasuredItem(
@@ -45,7 +113,13 @@ final class AppModel {
                 comparisonAngleCount: estimate.comparisonAngleCount,
                 comparisonAgreementCount: estimate.comparisonAgreementCount,
                 stackability: stackability,
-                orientationPolicy: orientationPolicy
+                orientationPolicy: orientationPolicy,
+                angleMeasurements: angleMeasurements?.isEmpty == true ? nil : angleMeasurements,
+                resolutionRule: resolutionRule,
+                toleranceStatus: toleranceStatus ?? self.toleranceStatus(
+                    confidence: estimate.confidence,
+                    angleMeasurements: angleMeasurements ?? []
+                )
             )
         )
         persist()

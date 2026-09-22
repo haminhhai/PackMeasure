@@ -95,6 +95,75 @@ final class DepthRegionSegmenterTests: XCTestCase {
 
         XCTAssertNil(DepthRegionSegmenter().segment(grid))
     }
+
+    // MARK: - Lateral bleed containment (US1, FR-003)
+
+    /// A carton beside a surface that ramps away from it. Every step is under
+    /// the local gradient limit and the far end still sits inside the global
+    /// seed-delta budget, so the local and global guards both pass it. Only the
+    /// cumulative travel guard stops the walk absorbing the neighbour.
+    func testStopsLateralRampOntoAdjacentSurface() throws {
+        var grid = DepthGrid.fixture(width: 25, height: 11, depth: 4.0)
+        // The carton face under the reticle.
+        grid.fill(x: 8...12, y: 3...7, depth: 1.10, confidence: 2)
+        // A connected ramp running away to the right in 0.06 m steps.
+        for x in 13...22 {
+            let rampDepth = 1.10 + Float(x - 12) * 0.06
+            grid.fill(x: x...x, y: 3...7, depth: rampDepth, confidence: 2)
+        }
+
+        let segmenter = DepthRegionSegmenter()
+        let region = try XCTUnwrap(segmenter.segment(grid))
+
+        // Both legacy guards would admit the whole ramp: each step is 0.06 m
+        // against a local limit of max(0.075, d * 0.035), and the far end is
+        // 0.60 m from the seed against a global budget of max(0.75, 0.495).
+        let farEndDelta = (1.10 + 10 * 0.06) - 1.10
+        XCTAssertLessThan(farEndDelta, max(0.75, 1.10 * 0.45))
+        XCTAssertLessThan(Float(0.06), max(segmenter.localJumpMeters, 1.10 * segmenter.localJumpFraction))
+
+        // The cumulative travel budget cuts the walk off partway along the ramp.
+        XCTAssertLessThan(region.bounds.maxX, 22)
+        XCTAssertTrue(region.indices.allSatisfy { grid.depths[$0] <= 1.10 + segmenter.maximumCumulativeDepthTravelMeters + 0.001 })
+    }
+
+    /// The containment must not clip a carton's own visible faces.
+    func testKeepsCartonFacesWithinTheTravelBudget() throws {
+        var grid = DepthGrid.fixture(width: 21, height: 13, depth: 4.0)
+        // A front face plus a side face receding by 0.03 m per column, a total
+        // depth span of 0.18 m across the object.
+        grid.fill(x: 6...10, y: 3...9, depth: 1.30, confidence: 2)
+        for x in 11...16 {
+            grid.fill(x: x...x, y: 3...9, depth: 1.30 + Float(x - 10) * 0.03, confidence: 2)
+        }
+
+        let region = try XCTUnwrap(DepthRegionSegmenter().segment(grid))
+
+        XCTAssertEqual(region.bounds, PixelBounds(minX: 6, minY: 3, maxX: 16, maxY: 9))
+    }
+
+    /// At a 1.5 m working distance the global budget alone is max(0.75, 0.675)
+    /// = 0.75 m, which is larger than many cartons. The travel guard must bound
+    /// the region regardless of how gently the background recedes.
+    func testBoundsRegionAtTypicalWorkingDistance() throws {
+        var grid = DepthGrid.fixture(width: 31, height: 9, depth: 5.0)
+        grid.fill(x: 13...17, y: 2...6, depth: 1.50, confidence: 2)
+        for x in 18...29 {
+            grid.fill(x: x...x, y: 2...6, depth: 1.50 + Float(x - 17) * 0.05, confidence: 2)
+        }
+
+        let segmenter = DepthRegionSegmenter()
+        let region = try XCTUnwrap(segmenter.segment(grid))
+
+        let budget = max(
+            segmenter.maximumCumulativeDepthTravelMeters,
+            1.50 * segmenter.maximumCumulativeDepthTravelFraction
+        )
+        let deepest = region.indices.map { grid.depths[$0] }.max() ?? 0
+        XCTAssertLessThanOrEqual(deepest, 1.50 + budget + 0.001)
+        XCTAssertLessThan(region.bounds.maxX, 29)
+    }
+
 }
 
 private extension DepthGrid {

@@ -9,10 +9,26 @@ recommendation.
 
 PackMeasure is an early open-source alpha. The end-to-end scan, local inventory,
 packing totals, and vehicle-planning flows work on a LiDAR-equipped iPhone, but
-real-device dimensional calibration is still in progress. A recent known-box
-check measured a stated 24 × 20 × 20-inch box as 24 × 24 × 20 inches. Do not use
-the current estimates as the sole basis for tight clearances or safety-critical
+real-device dimensional calibration is still in progress. A known-box check
+measured a stated 24 × 20 × 20-inch box as 24 × 24 × 20 inches. Do not use the
+current estimates as the sole basis for tight clearances or safety-critical
 loading decisions.
+
+**Stated accuracy tolerance:** every accepted dimension should land within 5%
+and 20 mm of the real measurement. That is the target, not a measured result.
+The app now tells you where it stands rather than leaving you to guess:
+
+- A measurement whose evidence cannot support the tolerance is labeled below
+  tolerance and offers a retake instead of being shown as an ordinary result.
+- On a device with no calibration history, accuracy reads as *not verified*. It
+  is never presented as a pass.
+- **Calibration check** (in the app) measures a carton you have already measured
+  with a tape and reports the error on each axis separately. Transcribe the
+  results into `Docs/DeviceCalibration.md`.
+
+The known-box error above has not yet been re-measured on a device since the
+depth-segmentation containment landed, so it stands as the last recorded
+result.
 
 ## App preview
 
@@ -43,6 +59,28 @@ height-diverse viewpoint before it will enable saving.
    discarded.
 7. Set quantity, stacking, and whether the item may safely turn on its side,
    then save it.
+
+## Units and reading a measurement
+
+Every dimension is labeled — length, width, and height — in the item list, the
+capture review, the item detail, and the calibration check, so you never have to
+guess which number is which. VoiceOver reads each one as a complete phrase, for
+example "Length, 61.0 centimeters".
+
+Pick your unit in **Settings**: millimeters, centimeters, meters, inches, or
+feet and inches. It applies to everything the app shows and to the values you
+type in, and it is remembered between launches. A first launch follows your
+device region. Measurements are stored independently of this setting, so
+switching units never changes a saved size.
+
+Vehicle and load-planning figures — cargo floor area and cubic volume — remain
+in square feet and cubic feet, matching how rental fleets publish them.
+
+## Measurement provenance
+
+Open **How this was measured** on any item to see what each contributing angle
+measured, which angles agreed, and which one supplied the accepted value. Items
+saved before this existed say so rather than showing blank rows.
 
 PackMeasure compares raw meter values, not the rounded inches shown in the UI.
 Agreement improves repeatability but does not prove ground-truth accuracy. The

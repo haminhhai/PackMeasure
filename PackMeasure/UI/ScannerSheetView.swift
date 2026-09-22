@@ -81,6 +81,12 @@ struct ScannerSheetView: View {
             measurementWorkflow.captures.map(\.evidence.estimate)
         }
 
+        /// Per-angle provenance for the accepted result. Empty until the
+        /// workflow accepts one.
+        var acceptedAngleMeasurements: [AngleMeasurement] {
+            measurementWorkflow.angleMeasurements
+        }
+
         var canChangeCameraZoom: Bool {
             availableCameraZooms.count > 1
                 && capturedEstimates.isEmpty
@@ -271,14 +277,17 @@ struct ScannerSheetView: View {
                 if let estimate = scannerState.estimate {
                     Form {
                         Section(ScannerResultCopy.sizeSectionTitle) {
-                            Text(
-                                "\(MeasurementMath.inchString(from: estimate.lengthMeters)) × " +
-                                "\(MeasurementMath.inchString(from: estimate.widthMeters)) × " +
-                                "\(MeasurementMath.inchString(from: estimate.heightMeters))"
+                            DimensionRows(
+                                formatter: appModel.dimensionFormatter,
+                                lengthMeters: estimate.lengthMeters,
+                                widthMeters: estimate.widthMeters,
+                                heightMeters: estimate.heightMeters
                             )
                             Text(ScannerResultCopy.qualitySummary(for: estimate))
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
+
+                            toleranceNotice(for: estimate)
                         }
 
                         if scannerState.capturedEstimates.count > 1 {
@@ -475,7 +484,9 @@ struct ScannerSheetView: View {
                         stackability: isStackable
                             ? .stackable(maxLayers: maxStackLayers)
                             : .notStackable,
-                        orientationPolicy: mayRotate ? .mayRotate : .keepUpright
+                        orientationPolicy: mayRotate ? .mayRotate : .keepUpright,
+                        angleMeasurements: scannerState.acceptedAngleMeasurements,
+                        resolutionRule: .largestAgreeingValue
                     )
                     dismiss()
                 }
@@ -642,9 +653,48 @@ struct ScannerSheetView: View {
     }
 
     private func dimensionString(_ estimate: MeasurementEstimate) -> String {
-        "\(MeasurementMath.inchString(from: estimate.lengthMeters)) × "
-            + "\(MeasurementMath.inchString(from: estimate.widthMeters)) × "
-            + "\(MeasurementMath.inchString(from: estimate.heightMeters))"
+        appModel.dimensionFormatter.compact(for: estimate)
+    }
+
+    /// A result that cannot meet the stated tolerance is labeled and offers a
+    /// retake; it is never styled like an ordinary accepted result (FR-002).
+    /// `unknown` says so plainly rather than implying a pass (FR-029).
+    @ViewBuilder
+    private func toleranceNotice(for estimate: MeasurementEstimate) -> some View {
+        let status = appModel.toleranceStatus(
+            confidence: estimate.confidence,
+            angleMeasurements: scannerState.acceptedAngleMeasurements
+        )
+        switch status {
+        case .belowTolerance:
+            VStack(alignment: .leading, spacing: 6) {
+                Label(
+                    "Below the 5% / 20 mm accuracy tolerance",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.orange)
+                Text(
+                    appModel.isDeviceOutsideTolerance
+                    ? "The last calibration check on this device was outside tolerance. "
+                      + "Retake, or run a calibration check before relying on this size."
+                    : "The evidence behind this measurement does not support the stated "
+                      + "tolerance. Retake before relying on this size."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+        case .unknown:
+            Text(
+                "Accuracy is not verified on this device yet. Run a calibration check "
+                + "against a carton you have measured with a tape."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        case .withinTolerance:
+            EmptyView()
+        }
     }
 }
 
@@ -861,6 +911,8 @@ enum ScannerPhotoFailureCopy {
         switch result {
         case .notAttempted, .accepted:
             nil
+        case .targetRejected(.adjacentSurfaceContamination):
+            CenteredTargetRejection.adjacentSurfaceContamination.reason
         case .targetRejected(.floorSurface):
             "Foreground detection missed this shape, and the center-depth fallback found the floor. Keep the center of the frame on the object and retake the photo."
         case .targetRejected(.insufficientSurfaceEvidence):

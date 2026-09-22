@@ -33,6 +33,8 @@ enum SingleShotFallbackResult: Equatable, Sendable {
             "target_rejected,reason=floor_surface"
         case .targetRejected(.insufficientSurfaceEvidence):
             "target_rejected,reason=insufficient_surface_evidence"
+        case .targetRejected(.adjacentSurfaceContamination):
+            "target_rejected,reason=adjacent_surface_contamination"
         case .unavailable:
             "unavailable"
         }

@@ -198,7 +198,9 @@ struct AppModelInventoryTests {
     func dimensionFormattingCarriesTwelveInchesIntoNextFoot() {
         let almostOneFoot = meters(fromInches: 11.6)
 
-        #expect(MeasurementMath.inchString(from: almostOneFoot) == "1 ft 0 in")
+        #expect(
+            MeasurementUnit.feetAndInches.formatted(fromMeters: almostOneFoot) == "1 ft 0 in"
+        )
     }
 
     @Test
